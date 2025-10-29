@@ -82,10 +82,15 @@ class DataConnector:
     def load_users(self) -> pd.DataFrame:
         """Load users table."""
         if self.use_local:
-            file_path = os.path.join(
-                os.getenv('DATA_PATH', './data/raw/'),
-                'users_cx.csv'
-            )
+            # Check if DATA_URL is set (for remote CSV files)
+            data_url = os.getenv('DATA_URL')
+            if data_url:
+                file_path = f"{data_url}/users_cx.csv"
+            else:
+                file_path = os.path.join(
+                    os.getenv('DATA_PATH', './data/raw/'),
+                    'users_cx.csv'
+                )
             df = pd.read_csv(file_path)
             # Convert date columns (handle DD/MM/YYYY format)
             df['signup_date'] = pd.to_datetime(df['signup_date'], dayfirst=True, format='mixed')
@@ -98,10 +103,15 @@ class DataConnector:
     def load_events(self) -> pd.DataFrame:
         """Load events table."""
         if self.use_local:
-            file_path = os.path.join(
-                os.getenv('DATA_PATH', './data/raw/'),
-                'events_cx_clean.csv'
-            )
+            # Check if DATA_URL is set (for remote CSV files)
+            data_url = os.getenv('DATA_URL')
+            if data_url:
+                file_path = f"{data_url}/events_cx_clean.csv"
+            else:
+                file_path = os.path.join(
+                    os.getenv('DATA_PATH', './data/raw/'),
+                    'events_cx_clean.csv'
+                )
             df = pd.read_csv(file_path)
             # Convert timestamp column (handle DD/MM/YYYY HH:MM:SS format)
             df['event_ts'] = pd.to_datetime(df['event_ts'], dayfirst=True, format='mixed')

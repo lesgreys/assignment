@@ -24,3 +24,5 @@ htmlcov/
 .coverage
 *.ipynb
 .ipynb_checkpoints/
+data/
+*.csv
