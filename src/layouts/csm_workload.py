@@ -4,7 +4,7 @@ Track Customer Success Manager workload and account distribution.
 """
 
 import dash_bootstrap_components as dbc
-from dash import dcc, html, dash_table
+from dash import dcc, html, dash_table, Input, Output, State, callback
 import plotly.graph_objects as go
 import plotly.express as px
 import pandas as pd
@@ -15,14 +15,65 @@ def create_csm_workload(data_loader):
     """Create CSM Workload dashboard."""
     df = data_loader.get_master_data()
 
-    # Filter to users with CSM
+    # Layout
+    layout = dbc.Container([
+        html.H2("CSM Workload Dashboard", className="mb-4"),
+
+        # Filter controls
+        dbc.Row([
+            dbc.Col([
+                html.Label("Active Status:", className="fw-bold mb-1"),
+                dbc.RadioItems(
+                    id='csm-workload-active-filter',
+                    options=[
+                        {'label': 'All', 'value': 'all'},
+                        {'label': 'Active', 'value': 'active'},
+                        {'label': 'Inactive', 'value': 'inactive'}
+                    ],
+                    value='all',
+                    inline=True
+                )
+            ], md=3),
+        ], className="mb-3 p-3 bg-light rounded"),
+
+        # Content will be updated by callback
+        html.Div(id='csm-workload-content'),
+
+        # Store data for callbacks
+        dcc.Store(id='csm-workload-data-store', data=df.to_dict('records'))
+
+    ], fluid=True)
+
+    return layout
+
+
+# Callback to update all visualizations based on filter
+@callback(
+    Output('csm-workload-content', 'children'),
+    [Input('csm-workload-active-filter', 'value')],
+    [State('csm-workload-data-store', 'data')],
+    prevent_initial_call=False
+)
+def update_csm_workload_visuals(active_filter, stored_data):
+    """Update all visualizations based on active status filter."""
+    # Reconstruct dataframe
+    df = pd.DataFrame(stored_data)
+
+    # Apply active status filter FIRST
+    if active_filter == 'active':
+        df = df[df['is_active'] == 1]
+    elif active_filter == 'inactive':
+        df = df[df['is_active'] == 0]
+    # 'all' means no filter
+
+    # Then filter to users with CSM
     csm_df = df[df['success_manager_assigned'] == 1].copy()
 
+    # Check if there are any CSM assignments after filtering
     if len(csm_df) == 0:
-        return dbc.Container([
-            html.H2("CSM Workload", className="mb-4"),
-            dbc.Alert("No CSM assignments found in the data", color="info")
-        ], fluid=True)
+        return dbc.Alert("No CSM assignments found with the selected filter", color="info")
+
+    # ========== CALCULATIONS ==========
 
     # Accounts per CSM
     csm_counts = csm_df.groupby('csm_id').agg({
@@ -33,6 +84,13 @@ def create_csm_workload(data_loader):
     csm_counts.columns = ['csm_id', 'account_count', 'total_arr', 'avg_health_score']
     csm_counts = csm_counts.sort_values('account_count', ascending=False)
 
+    # Users without CSM (from filtered df, not csm_df)
+    no_csm = df[df['success_manager_assigned'] == 0]
+    no_csm_high_value = no_csm[no_csm['annual_revenue'] > no_csm['annual_revenue'].median()] if len(no_csm) > 0 else pd.DataFrame()
+
+    # ========== CHARTS ==========
+
+    # Accounts per CSM
     accounts_fig = px.bar(
         csm_counts, x='csm_id', y='account_count',
         title='Accounts per CSM',
@@ -132,14 +190,9 @@ def create_csm_workload(data_loader):
         filter_action='native'
     )
 
-    # Users without CSM
-    no_csm = df[df['success_manager_assigned'] == 0]
-    no_csm_high_value = no_csm[no_csm['annual_revenue'] > no_csm['annual_revenue'].median()]
+    # ========== LAYOUT ==========
 
-    # Layout
-    layout = dbc.Container([
-        html.H2("CSM Workload Dashboard", className="mb-4"),
-
+    return html.Div([
         # Summary cards
         dbc.Row([
             dbc.Col(SmartKPICard(
@@ -206,7 +259,4 @@ def create_csm_workload(data_loader):
                 page_id="csm_workload"
             ), md=12)
         ])
-
-    ], fluid=True)
-
-    return layout
+    ])

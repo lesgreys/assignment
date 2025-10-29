@@ -59,7 +59,7 @@ def create_user_flow(data_loader):
         # Filter controls
         dbc.Row([
             dbc.Col([
-                html.Label("Active Status:", className="fw-bold mb-1", style={'fontSize': '0.9rem'}),
+                html.Label("Active Status:", className="fw-bold mb-1"),
                 dbc.RadioItems(
                     id='user-flow-active-filter',
                     options=[
@@ -68,8 +68,7 @@ def create_user_flow(data_loader):
                         {'label': 'Inactive', 'value': 'inactive'}
                     ],
                     value='all',
-                    inline=True,
-                    className="mt-1"
+                    inline=True
                 )
             ], md=3),
             dbc.Col([
