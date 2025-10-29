@@ -24,10 +24,28 @@ htmlcov/
 .coverage
 *.ipynb
 .ipynb_checkpoints/
-# Don't exclude data/ - we need it for deployment
-# data/
-# *.csv
 
 # Exclude cache (will be regenerated)
 data/processed/
 models/
+
+# Exclude PDF export utilities (reduces bundle size by 200MB+)
+src/utils/pdf_export.py
+src/utils/chart_exporter.py
+
+# Exclude test data from packages
+**/tests/
+**/test/
+**/testing/
+**/*_test.py
+**/*_tests.py
+
+# Exclude documentation and examples
+**/docs/
+**/examples/
+**/samples/
+
+# Exclude source maps and development files
+**/*.map
+**/*.ts
+!api/**/*.ts

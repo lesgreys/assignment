@@ -86,9 +86,15 @@ header = dbc.Navbar(
             ], width=6),
             dbc.Col([
                 html.Div([
+                    # Only show PDF export button in local development (not on Vercel)
+                    dbc.Button([
+                        html.I(className="fas fa-file-pdf me-2"),
+                        "Export to PDF"
+                    ], id="export-pdf-button", color="light", outline=True, size="sm",
+                       className="me-3", style={"display": "none" if os.environ.get('VERCEL') == '1' else "inline-block"}),
                     html.Span(f"Last Updated: {datetime.now().strftime('%Y-%m-%d %H:%M')}",
-                             className="text-light float-end")
-                ])
+                             className="text-light")
+                ], className="float-end")
             ], width=6)
         ], className="w-100 align-items-center")
     ], fluid=True),
@@ -98,11 +104,30 @@ header = dbc.Navbar(
     style={"position": "fixed", "top": 0, "width": "100%", "z-index": 2}
 )
 
+# PDF Export Modal
+pdf_export_modal = dbc.Modal([
+    dbc.ModalHeader("Generating PDF Report"),
+    dbc.ModalBody([
+        html.Div([
+            html.I(className="fas fa-file-pdf fa-3x text-primary mb-3"),
+            html.H5("Exporting Dashboard to PDF...", className="mb-3"),
+            dbc.Progress(value=100, striped=True, animated=True, color="primary", className="mb-3"),
+            html.P([
+                html.I(className="fas fa-circle-notch fa-spin me-2"),
+                "This may take 10-30 seconds. Please wait..."
+            ], className="text-muted")
+        ], className="text-center")
+    ]),
+], id="pdf-export-modal", is_open=False, centered=True, backdrop="static", keyboard=False)
+
 # Main layout
 app.layout = dbc.Container([
     dcc.Location(id='url', refresh=False),
     dcc.Interval(id='loading-interval', interval=1000, n_intervals=0, disabled=False),  # Refresh every second while loading
     dcc.Store(id='data-loaded-store', storage_type='session'),  # Persist across page changes
+    dcc.Download(id="download-pdf"),  # PDF download component
+    dcc.Store(id='pdf-export-status', data={'exporting': False}),  # Track export status
+    pdf_export_modal,  # PDF export loading modal
     header,
     dbc.Row([
         dbc.Col(sidebar, width=2, style={"padding": 0}),
@@ -229,6 +254,100 @@ def disable_interval_when_loaded(n_intervals):
     if loader.loaded:
         return True, True  # Disable interval, signal data loaded
     return False, False  # Keep interval running, data not loaded yet
+
+
+# PDF Export - Open modal when button clicked
+@app.callback(
+    Output("pdf-export-modal", "is_open"),
+    Input("export-pdf-button", "n_clicks"),
+    State("pdf-export-modal", "is_open"),
+    prevent_initial_call=True
+)
+def toggle_export_modal(n_clicks, is_open):
+    """Open modal when export button is clicked."""
+    if n_clicks:
+        return True
+    return is_open
+
+
+# PDF Export - Generate and download
+@app.callback(
+    [Output("download-pdf", "data"),
+     Output("pdf-export-modal", "is_open", allow_duplicate=True)],
+    Input("export-pdf-button", "n_clicks"),
+    prevent_initial_call=True
+)
+def export_dashboard_pdf(n_clicks):
+    """Generate and download PDF report of the entire dashboard."""
+    if n_clicks is None:
+        return dash.no_update, dash.no_update
+
+    try:
+        # Import PDF export utility - only available in local environment
+        # Skip on Vercel to reduce bundle size
+        if os.environ.get('VERCEL') == '1':
+            print("PDF export not available on Vercel deployment")
+            return dash.no_update, False
+
+        from utils.pdf_export import PDFExporter
+        import tempfile
+
+        print(f"\n{'='*60}")
+        print(f"PDF EXPORT STARTED - Click #{n_clicks}")
+        print(f"{'='*60}")
+
+        # Get data loader
+        loader = get_data_loader()
+
+        # Ensure data is loaded
+        if not loader.loaded:
+            print("Data not loaded, loading now...")
+            loader.load_all_data()
+        else:
+            print("Data already loaded")
+
+        # Generate PDF with timestamp
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        temp_path = tempfile.mktemp(suffix='.pdf', prefix=f'dashboard_export_{timestamp}_')
+
+        print(f"Generating PDF at: {temp_path}")
+
+        # Create PDF
+        exporter = PDFExporter(loader, temp_path)
+        pdf_path = exporter.generate_pdf()
+
+        print(f"PDF generated successfully: {pdf_path}")
+        print(f"File size: {os.path.getsize(pdf_path) / 1024 / 1024:.2f} MB")
+
+        # Read PDF content
+        with open(pdf_path, 'rb') as f:
+            pdf_content = f.read()
+
+        # Clean up temp file
+        try:
+            os.remove(pdf_path)
+            print("Temp file cleaned up")
+        except Exception as e:
+            print(f"Could not remove temp file: {e}")
+
+        print(f"Returning PDF for download: dashboard_export_{timestamp}.pdf")
+        print(f"{'='*60}\n")
+
+        # Return PDF for download and close modal
+        return dcc.send_bytes(
+            pdf_content,
+            filename=f"dashboard_export_{timestamp}.pdf"
+        ), False
+
+    except Exception as e:
+        print(f"\n{'='*60}")
+        print(f"ERROR GENERATING PDF EXPORT")
+        print(f"{'='*60}")
+        print(f"Error: {e}")
+        import traceback
+        traceback.print_exc()
+        print(f"{'='*60}\n")
+        return dash.no_update, False  # Close modal on error
 
 
 # Modal toggle callbacks for info icons
