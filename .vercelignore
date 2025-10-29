@@ -24,5 +24,6 @@ htmlcov/
 .coverage
 *.ipynb
 .ipynb_checkpoints/
-data/
-*.csv
+# Don't exclude data/ - we need it for deployment
+# data/
+# *.csv

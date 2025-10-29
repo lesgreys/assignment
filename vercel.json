@@ -18,6 +18,7 @@
   "env": {
     "USE_LOCAL_DATA": "true",
     "DASH_DEBUG": "false",
-    "USE_SIMPLE_CHURN": "true"
+    "USE_SIMPLE_CHURN": "true",
+    "DATA_PATH": "./data/raw/"
   }
 }
