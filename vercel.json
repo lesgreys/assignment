@@ -5,7 +5,8 @@
       "src": "api/index.py",
       "use": "@vercel/python",
       "config": {
-        "maxLambdaSize": "250mb"
+        "maxLambdaSize": "250mb",
+        "excludeFiles": "{**/tests/**,**/test/**,**/*_test.py,**/*.pyc,**/__pycache__/**,**/examples/**,**/docs/**}"
       }
     }
   ],
@@ -22,10 +23,5 @@
     "DATA_PATH": "./data/raw/",
     "VERCEL": "1",
     "PYTHONDONTWRITEBYTECODE": "1"
-  },
-  "functions": {
-    "api/index.py": {
-      "excludeFiles": "{**/tests/**,**/test/**,**/*_test.py,**/*.pyc,**/__pycache__/**,**/examples/**,**/docs/**}"
-    }
   }
 }
