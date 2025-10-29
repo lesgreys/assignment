@@ -539,24 +539,37 @@ def update_user_flow(selected_user, active_filter, plan_filter, health_filter, c
         daily_events = filtered_events.groupby('event_date').size().reset_index(name='event_count')
         daily_events['event_date'] = pd.to_datetime(daily_events['event_date'])
 
-        # Generate enhanced hover text with event details
-        hover_texts = create_daily_hover_text(filtered_events, daily_events)
-
         timeline_fig = go.Figure()
 
-        # Main timeline trace with enhanced hover
-        timeline_fig.add_trace(go.Scatter(
-            x=daily_events['event_date'],
-            y=daily_events['event_count'],
-            mode='lines+markers',
-            name='Events',
-            line=dict(color='#4A90E2', width=3),
-            marker=dict(size=6),
-            fill='tozeroy',
-            fillcolor='rgba(74, 144, 226, 0.2)',
-            text=hover_texts,
-            hovertemplate='%{text}<extra></extra>'
-        ))
+        # Generate detailed hover text only for specific users (performance optimization)
+        if selected_user != 'ALL':
+            # Detailed hover with event-level details for single user
+            hover_texts = create_daily_hover_text(filtered_events, daily_events)
+            timeline_fig.add_trace(go.Scatter(
+                x=daily_events['event_date'],
+                y=daily_events['event_count'],
+                mode='lines+markers',
+                name='Events',
+                line=dict(color='#4A90E2', width=3),
+                marker=dict(size=6),
+                fill='tozeroy',
+                fillcolor='rgba(74, 144, 226, 0.2)',
+                text=hover_texts,
+                hovertemplate='%{text}<extra></extra>'
+            ))
+        else:
+            # Simple hover for aggregate view (much faster)
+            timeline_fig.add_trace(go.Scatter(
+                x=daily_events['event_date'],
+                y=daily_events['event_count'],
+                mode='lines+markers',
+                name='Events',
+                line=dict(color='#4A90E2', width=3),
+                marker=dict(size=6),
+                fill='tozeroy',
+                fillcolor='rgba(74, 144, 226, 0.2)',
+                hovertemplate='<b>%{x|%B %d, %Y}</b><br>Total Events: %{y:,}<extra></extra>'
+            ))
 
         # Add signup marker (green dot) - only for specific users
         if selected_user != 'ALL' and user_info is not None:
