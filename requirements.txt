@@ -9,9 +9,13 @@ plotly==5.18.0
 # Data Processing
 pandas==2.1.4
 numpy==1.26.2
+pyarrow==14.0.1
 
 # Environment & Configuration
 python-dotenv==1.0.0
+
+# Caching
+upstash-redis==0.15.0
 
 # Utilities
 python-dateutil==2.8.2

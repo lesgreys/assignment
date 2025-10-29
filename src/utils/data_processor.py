@@ -7,6 +7,7 @@ import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
 from typing import Tuple, Dict
+from functools import reduce
 
 
 class CXDataProcessor:
@@ -41,30 +42,44 @@ class CXDataProcessor:
         self.users['days_to_renewal'] = (self.users['renewal_due_date'] - today).dt.days
 
     def calculate_user_activity_metrics(self) -> pd.DataFrame:
-        """Calculate user activity metrics from events."""
+        """Calculate user activity metrics from events (optimized)."""
         # Fixed reference date for consistent metrics (data snapshot date)
         today = pd.Timestamp('2025-08-01')
 
-        # Overall activity
-        activity = self.events.groupby('user_id').agg({
-            'event_id': 'count',
-            'event_ts': ['min', 'max']
-        }).reset_index()
-        activity.columns = ['user_id', 'total_events', 'first_activity', 'last_activity']
+        # Pre-calculate time window flags using vectorized operations
+        events = self.events.copy()
+        events['days_ago'] = (today - events['event_ts']).dt.days
+        events['in_30d'] = events['days_ago'] <= 30
+        events['in_60d'] = events['days_ago'] <= 60
+        events['in_90d'] = events['days_ago'] <= 90
+        events['event_date'] = events['event_ts'].dt.date
+
+        # Single-pass aggregation with all metrics
+        agg_dict = {
+            'event_id': 'count',  # total_events
+            'event_ts': ['min', 'max'],  # first/last activity
+            'in_30d': 'sum',  # events_30d
+            'in_60d': 'sum',  # events_60d
+            'in_90d': 'sum',  # events_90d
+        }
+
+        activity = events.groupby('user_id').agg(agg_dict).reset_index()
+        activity.columns = ['user_id', 'total_events', 'first_activity', 'last_activity',
+                           'events_30d', 'events_60d', 'events_90d']
+
+        # Calculate days since last activity
         activity['days_since_last_activity'] = (today - activity['last_activity']).dt.days
 
-        # Time-windowed activity
-        for days in [30, 60, 90]:
-            cutoff = today - timedelta(days=days)
-            recent = self.events[self.events['event_ts'] >= cutoff]
+        # Calculate active days per window (separate pass for date-based counting)
+        # This is much faster than the previous approach
+        active_days_30d = events[events['in_30d']].groupby('user_id')['event_date'].nunique().reset_index(name='active_days_30d')
+        active_days_60d = events[events['in_60d']].groupby('user_id')['event_date'].nunique().reset_index(name='active_days_60d')
+        active_days_90d = events[events['in_90d']].groupby('user_id')['event_date'].nunique().reset_index(name='active_days_90d')
 
-            events_count = recent.groupby('user_id').size().reset_index(name=f'events_{days}d')
-            activity = activity.merge(events_count, on='user_id', how='left')
-
-            active_days = recent.groupby('user_id')['event_ts'].apply(
-                lambda x: x.dt.date.nunique()
-            ).reset_index(name=f'active_days_{days}d')
-            activity = activity.merge(active_days, on='user_id', how='left')
+        # Merge active days
+        activity = activity.merge(active_days_30d, on='user_id', how='left')
+        activity = activity.merge(active_days_60d, on='user_id', how='left')
+        activity = activity.merge(active_days_90d, on='user_id', how='left')
 
         # Fill NaN with 0
         activity = activity.fillna(0)
@@ -185,15 +200,18 @@ class CXDataProcessor:
         core_actions = (df.get('property_added_count', 0) +
                        df.get('tenant_added_count', 0) +
                        df.get('lease_signed_count', 0))
-        df['core_usage_score'] = pd.cut(core_actions, bins=[-1, 0, 1, 5, 10, np.inf],
-                                        labels=[0, 25, 50, 75, 100]).astype(float)
+        # Replace pd.cut with numpy digitize (faster)
+        core_bins = np.array([0, 1, 5, 10, np.inf])
+        core_labels = np.array([0, 25, 50, 75, 100])
+        df['core_usage_score'] = core_labels[np.digitize(core_actions, core_bins, right=False)]
 
         df['adoption_score'] = np.minimum(100, (df.get('unique_features', 0) / 5) * 100)
 
-        recency_bins = [-1, 7, 14, 30, 60, 90, np.inf]
-        recency_labels = [100, 80, 60, 40, 20, 0]
-        df['recency_score'] = pd.cut(df.get('days_since_last_activity', 999),
-                                     bins=recency_bins, labels=recency_labels).astype(float)
+        # Replace pd.cut with numpy digitize for recency scoring
+        recency_bins = np.array([7, 14, 30, 60, 90, np.inf])
+        recency_labels = np.array([100, 80, 60, 40, 20, 0])
+        days_since = df.get('days_since_last_activity', 999).fillna(999).values
+        df['recency_score'] = recency_labels[np.digitize(days_since, recency_bins, right=False)]
 
         df['usage_component'] = (
             df['login_score'] * 0.15 +
@@ -220,10 +238,11 @@ class CXDataProcessor:
         # Sentiment Score (0-100) - 20% weight
         df['nps_normalized'] = (df['nps_score'] + 100) / 2
 
-        support_bins = [-1, 0, 2, 5, 10, 20, np.inf]
-        support_labels = [100, 80, 60, 40, 20, 0]
-        df['support_health'] = pd.cut(df['support_tickets_last_90d'],
-                                      bins=support_bins, labels=support_labels).astype(float)
+        # Replace pd.cut with numpy digitize for support health
+        support_bins = np.array([0, 2, 5, 10, 20, np.inf])
+        support_labels = np.array([100, 80, 60, 40, 20, 0])
+        support_tickets = df['support_tickets_last_90d'].fillna(0).values
+        df['support_health'] = support_labels[np.digitize(support_tickets, support_bins, right=False)]
 
         df['sentiment_component'] = (
             df['nps_normalized'] * 0.60 +
@@ -252,13 +271,12 @@ class CXDataProcessor:
         # Ensure health score is within bounds and handle NaN
         df['health_score'] = df['health_score'].fillna(0).clip(0, 100)
 
-        # Health Tier
-        df['health_tier'] = pd.cut(df['health_score'],
-                                   bins=[-0.01, 60, 80, 100.01],
-                                   labels=['Red', 'Yellow', 'Green'])
-
-        # Convert categorical to string and handle any remaining NaN
-        df['health_tier'] = df['health_tier'].astype(str).replace('nan', 'Red')
+        # Health Tier using numpy (faster than pd.cut)
+        health_bins = np.array([60, 80, 100.01])
+        tier_labels = np.array(['Red', 'Yellow', 'Green'])
+        health_scores = df['health_score'].values
+        tier_indices = np.digitize(health_scores, health_bins, right=False)
+        df['health_tier'] = tier_labels[tier_indices]
 
         # Renewal Risk
         df['at_renewal_risk'] = (
@@ -269,29 +287,17 @@ class CXDataProcessor:
         return df
 
     def build_master_table(self) -> pd.DataFrame:
-        """Build comprehensive user metrics table."""
-        # Start with users
-        master = self.users.copy()
-
-        # Add activity metrics
+        """Build comprehensive user metrics table (optimized with single reduce merge)."""
+        # Calculate all metrics
         activity = self.calculate_user_activity_metrics()
-        master = master.merge(activity, on='user_id', how='left')
-
-        # Add login metrics
         logins = self.calculate_login_metrics()
-        master = master.merge(logins, on='user_id', how='left')
-
-        # Add core actions
         core = self.calculate_core_actions()
-        master = master.merge(core, on='user_id', how='left')
-
-        # Add feature adoption
         features = self.calculate_feature_adoption()
-        master = master.merge(features, on='user_id', how='left')
-
-        # Add training
         training = self.calculate_training_metrics()
-        master = master.merge(training, on='user_id', how='left')
+
+        # Merge all DataFrames at once using reduce (much faster than sequential merges)
+        dfs_to_merge = [self.users, activity, logins, core, features, training]
+        master = reduce(lambda left, right: left.merge(right, on='user_id', how='left'), dfs_to_merge)
 
         # Fill NaN values
         master = master.fillna(0)
