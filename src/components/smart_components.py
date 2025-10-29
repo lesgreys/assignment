@@ -62,13 +62,13 @@ def SmartGraph(component_id, figure, page_id=None, config=None, **kwargs):
     if config is None:
         config = CHART_CONFIG
 
-    # Create base graph
-    graph = dcc.Graph(figure=figure, config=config, **kwargs)
+    # Create base graph with height constraint
+    graph = dcc.Graph(figure=figure, config=config, style={"height": "100%"}, **kwargs)
 
-    # Return card with graph only (no info icon)
+    # Return card with graph only (no info icon) - with minHeight to prevent collapse
     return dbc.Card([
         dbc.CardBody([graph])
-    ], className="shadow-sm")
+    ], className="shadow-sm", style={"minHeight": "450px"})
 
 
 def SmartKPICard(component_id, title, value, subtitle="", icon="fas fa-chart-line", color="primary", page_id=None):

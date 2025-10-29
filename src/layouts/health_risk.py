@@ -31,7 +31,8 @@ def create_health_risk_monitor(data_loader):
         title='Health Score Distribution by Tier',
         xaxis_title='Health Score',
         yaxis_title='Number of Users',
-        barmode='overlay'
+        barmode='overlay',
+        height=400
     )
 
     # Health components breakdown
@@ -47,7 +48,8 @@ def create_health_risk_monitor(data_loader):
     components_fig.update_layout(
         title='Average Health Component Scores',
         xaxis_title='Score (0-100)',
-        yaxis_title='Component'
+        yaxis_title='Component',
+        height=400
     )
 
     # Renewal pipeline
@@ -73,7 +75,8 @@ def create_health_risk_monitor(data_loader):
         title='Renewal Pipeline by Health Status',
         xaxis_title='Health Tier',
         yaxis_title='Number of Accounts',
-        barmode='group'
+        barmode='group',
+        height=400
     )
 
     # Support tickets vs health
@@ -94,6 +97,7 @@ def create_health_risk_monitor(data_loader):
     )
     support_fig.update_xaxes(title='Support Tickets (Last 90 days)')
     support_fig.update_yaxes(title='Health Score')
+    support_fig.update_layout(height=400)
 
     # Red accounts table
     red_accounts = df[df['health_tier'] == 'Red'].sort_values('annual_revenue', ascending=False)

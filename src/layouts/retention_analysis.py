@@ -41,11 +41,12 @@ def create_retention_analysis(data_loader):
         cohort_fig.update_layout(
             title='Cohort Retention Heatmap (Last 12 Cohorts)',
             xaxis_title='Months Since Signup',
-            yaxis_title='Signup Cohort'
+            yaxis_title='Signup Cohort',
+            height=500
         )
     else:
         cohort_fig = go.Figure()
-        cohort_fig.update_layout(title='Insufficient data for cohort analysis')
+        cohort_fig.update_layout(title='Insufficient data for cohort analysis', height=500)
 
     # Churn by plan type
     churn_by_plan = df.groupby('plan_type').agg({
@@ -61,6 +62,7 @@ def create_retention_analysis(data_loader):
         labels={'churn_rate': 'Churn Rate (%)', 'plan_type': 'Plan Type'},
         color='plan_type'
     )
+    churn_plan_fig.update_layout(height=400)
 
     # Account age distribution
     age_fig = px.histogram(
@@ -69,6 +71,7 @@ def create_retention_analysis(data_loader):
         title='Account Age Distribution',
         labels={'account_age_days': 'Account Age (days)'}
     )
+    age_fig.update_layout(height=400)
 
     # Churn prediction distribution
     # Ensure categorical columns are strings
@@ -87,6 +90,7 @@ def create_retention_analysis(data_loader):
         color_discrete_map={'Green': '#27AE60', 'Yellow': '#F39C12', 'Red': '#E74C3C'},
         category_orders={'churn_risk_tier': ['Low', 'Medium', 'High'], 'health_tier': ['Red', 'Yellow', 'Green']}
     )
+    churn_risk_fig.update_layout(height=400)
 
     # Churn drivers analysis
     churned_users = df[df['is_active'] == 0]
@@ -114,7 +118,8 @@ def create_retention_analysis(data_loader):
     ])
     drivers_fig.update_layout(
         title='Churn Drivers: Churned vs Active Users',
-        barmode='group'
+        barmode='group',
+        height=400
     )
 
     # Layout

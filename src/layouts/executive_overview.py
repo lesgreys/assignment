@@ -69,30 +69,30 @@ def create_executive_overview(data_loader):
         ), md=3),
     ], className="mb-4")
 
-    # KPI Cards Row 2: Revenue Retention Metrics
-    grr_color = "success" if stats['grr'] > 90 else "warning" if stats['grr'] > 80 else "danger"
-    nrr_color = "success" if stats['nrr'] > 100 else "warning" if stats['nrr'] > 90 else "danger"
-
-    kpi_row_2 = dbc.Row([
-        dbc.Col(SmartKPICard(
-            "kpi_grr",
-            "GRR (Monthly)",
-            f"{stats['grr']:.1f}%",
-            "Gross Revenue Retention",
-            "fas fa-shield-alt",
-            grr_color,
-            page_id="executive_overview"
-        ), md=3),
-        dbc.Col(SmartKPICard(
-            "kpi_nrr",
-            "NRR (Monthly)",
-            f"{stats['nrr']:.1f}%",
-            "Net Revenue Retention",
-            "fas fa-chart-line",
-            nrr_color,
-            page_id="executive_overview"
-        ), md=3),
-    ], className="mb-4")
+    # KPI Cards Row 2: Revenue Retention Metrics (HIDDEN - calculations need verification)
+    # grr_color = "success" if stats['grr'] > 90 else "warning" if stats['grr'] > 80 else "danger"
+    # nrr_color = "success" if stats['nrr'] > 100 else "warning" if stats['nrr'] > 90 else "danger"
+    #
+    # kpi_row_2 = dbc.Row([
+    #     dbc.Col(SmartKPICard(
+    #         "kpi_grr",
+    #         "GRR (Monthly)",
+    #         f"{stats['grr']:.1f}%",
+    #         "Gross Revenue Retention",
+    #         "fas fa-shield-alt",
+    #         grr_color,
+    #         page_id="executive_overview"
+    #     ), md=3),
+    #     dbc.Col(SmartKPICard(
+    #         "kpi_nrr",
+    #         "NRR (Monthly)",
+    #         f"{stats['nrr']:.1f}%",
+    #         "Net Revenue Retention",
+    #         "fas fa-chart-line",
+    #         nrr_color,
+    #         page_id="executive_overview"
+    #     ), md=3),
+    # ], className="mb-4")
 
     # Health distribution pie chart
     health_data = pd.DataFrame.from_dict(stats['health_distribution'], orient='index', columns=['count'])
@@ -106,9 +106,10 @@ def create_executive_overview(data_loader):
             color_discrete_map={'Green': '#27AE60', 'Yellow': '#F39C12', 'Red': '#E74C3C'}
         )
         health_fig.update_traces(textposition='inside', textinfo='percent+label')
+        health_fig.update_layout(height=400)
     else:
         health_fig = go.Figure()
-        health_fig.update_layout(title='No health data available')
+        health_fig.update_layout(title='No health data available', height=400)
 
     # Plan distribution
     plan_data = pd.DataFrame.from_dict(stats['plan_distribution'], orient='index', columns=['count'])
@@ -121,6 +122,7 @@ def create_executive_overview(data_loader):
         color=plan_data.index,
         color_discrete_map={'starter': '#3498DB', 'pro': '#9B59B6', 'premium': '#E67E22'}
     )
+    plan_fig.update_layout(height=400)
 
     # ARR by plan type
     arr_by_plan = df.groupby('plan_type')['annual_revenue'].sum().reset_index()
@@ -134,6 +136,7 @@ def create_executive_overview(data_loader):
         color_discrete_map={'starter': '#3498DB', 'pro': '#9B59B6', 'premium': '#E67E22'}
     )
     arr_fig.update_yaxes(tickprefix='$', tickformat=',.0f')
+    arr_fig.update_layout(height=400)
 
     # NPS distribution
     nps_fig = go.Figure()
@@ -147,7 +150,8 @@ def create_executive_overview(data_loader):
         title='NPS Score Distribution',
         xaxis_title='NPS Score',
         yaxis_title='Number of Users',
-        showlegend=False
+        showlegend=False,
+        height=400
     )
 
     # At-risk accounts table
@@ -172,6 +176,7 @@ def create_executive_overview(data_loader):
         color_discrete_map={'Low': '#27AE60', 'Medium': '#F39C12', 'High': '#E74C3C'}
     )
     churn_risk_fig.update_traces(textposition='inside', textinfo='percent+label')
+    churn_risk_fig.update_layout(height=400)
 
     # Layout
     layout = dbc.Container([
@@ -180,8 +185,8 @@ def create_executive_overview(data_loader):
         # KPIs Row 1: User Metrics
         kpi_row_1,
 
-        # KPIs Row 2: Revenue Retention
-        kpi_row_2,
+        # KPIs Row 2: Revenue Retention (HIDDEN - calculations need verification)
+        # kpi_row_2,
 
         # Charts row 1 - with info icons
         dbc.Row([

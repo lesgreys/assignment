@@ -31,7 +31,7 @@ def create_adoption_engagement(data_loader):
         textinfo="value+percent initial",
         marker={"color": ["#3498DB", "#9B59B6", "#E67E22", "#1ABC9C", "#27AE60"]}
     ))
-    funnel_fig.update_layout(title='Core Feature Adoption Funnel')
+    funnel_fig.update_layout(title='Core Feature Adoption Funnel', height=400)
 
     # DAU/WAU/MAU trend (simulated from active days)
     engagement_metrics = pd.DataFrame({
@@ -47,6 +47,7 @@ def create_adoption_engagement(data_loader):
         title='User Engagement by Recency',
         color='Metric'
     )
+    engagement_fig.update_layout(height=400)
 
     # Top features adopted
     if 'feature_adopted' in events_df['event_type'].values:
@@ -57,9 +58,10 @@ def create_adoption_engagement(data_loader):
             title='Top 10 Adopted Features',
             labels={'x': 'Number of Adoptions', 'y': 'Feature'}
         )
+        features_fig.update_layout(height=400)
     else:
         features_fig = go.Figure()
-        features_fig.update_layout(title='No feature adoption data available')
+        features_fig.update_layout(title='No feature adoption data available', height=400)
 
     # Session length distribution
     session_fig = go.Figure()
@@ -74,7 +76,8 @@ def create_adoption_engagement(data_loader):
     session_fig.update_layout(
         title='Average Session Length Distribution (Last 30 Days)',
         xaxis_title='Session Length (minutes)',
-        yaxis_title='Number of Users'
+        yaxis_title='Number of Users',
+        height=400
     )
 
     # Training completion
@@ -87,12 +90,13 @@ def create_adoption_engagement(data_loader):
                 title='Training Completion Distribution',
                 labels={'trainings_attended': 'Number of Trainings Attended'}
             )
+            training_fig.update_layout(height=400)
         else:
             training_fig = go.Figure()
-            training_fig.update_layout(title='No training data available')
+            training_fig.update_layout(title='No training data available', height=400)
     else:
         training_fig = go.Figure()
-        training_fig.update_layout(title='No training data available')
+        training_fig.update_layout(title='No training data available', height=400)
 
     # Report generation by type
     if 'report_generated' in events_df['event_type'].values:
@@ -102,9 +106,10 @@ def create_adoption_engagement(data_loader):
             names=reports.index,
             title='Report Types Generated'
         )
+        reports_fig.update_layout(height=400)
     else:
         reports_fig = go.Figure()
-        reports_fig.update_layout(title='No report data available')
+        reports_fig.update_layout(title='No report data available', height=400)
 
     # Layout
     layout = dbc.Container([

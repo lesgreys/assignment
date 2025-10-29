@@ -40,6 +40,7 @@ def create_csm_workload(data_loader):
         color='account_count',
         color_continuous_scale='Blues'
     )
+    accounts_fig.update_layout(height=400)
 
     # ARR per CSM
     arr_fig = px.bar(
@@ -50,6 +51,7 @@ def create_csm_workload(data_loader):
         color_continuous_scale='Greens'
     )
     arr_fig.update_yaxes(tickprefix='$', tickformat=',.0f')
+    arr_fig.update_layout(height=400)
 
     # Health score by CSM
     health_fig = px.bar(
@@ -59,6 +61,7 @@ def create_csm_workload(data_loader):
         color='avg_health_score',
         color_continuous_scale='RdYlGn'
     )
+    health_fig.update_layout(height=400)
 
     # At-risk accounts by CSM
     at_risk_by_csm = csm_df.groupby('csm_id').agg({
@@ -77,7 +80,8 @@ def create_csm_workload(data_loader):
         title='At-Risk Accounts by CSM',
         xaxis_title='CSM ID',
         yaxis_title='Number of Accounts',
-        barmode='group'
+        barmode='group',
+        height=400
     )
 
     # Portfolio breakdown by CSM
@@ -89,6 +93,7 @@ def create_csm_workload(data_loader):
         labels={'count': 'Number of Accounts', 'csm_id': 'CSM ID'},
         barmode='stack'
     )
+    portfolio_fig.update_layout(height=400)
 
     # CSM performance table
     csm_performance = csm_df.groupby('csm_id').agg({

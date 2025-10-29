@@ -28,6 +28,7 @@ def create_revenue_analytics(data_loader):
     )
     arr_fig.update_traces(texttemplate='$%{text:,.0f}', textposition='outside')
     arr_fig.update_yaxes(tickprefix='$', tickformat=',.0f')
+    arr_fig.update_layout(height=400)
 
     # ARR per user by plan
     arr_per_user_fig = px.bar(
@@ -37,6 +38,7 @@ def create_revenue_analytics(data_loader):
         color='plan_type'
     )
     arr_per_user_fig.update_yaxes(tickprefix='$', tickformat=',.0f')
+    arr_per_user_fig.update_layout(height=400)
 
     # Portfolio size vs ARR
     portfolio_fig = px.scatter(
@@ -48,6 +50,7 @@ def create_revenue_analytics(data_loader):
         labels={'portfolio_size': 'Portfolio Size (# Properties)', 'annual_revenue': 'Annual Revenue ($)'}
     )
     portfolio_fig.update_yaxes(tickprefix='$', tickformat=',.0f')
+    portfolio_fig.update_layout(height=400)
 
     # Revenue at risk (low health + high ARR)
     revenue_at_risk = df[df['health_tier'].isin(['Red', 'Yellow'])].groupby('health_tier')['annual_revenue'].sum()
@@ -60,6 +63,7 @@ def create_revenue_analytics(data_loader):
     )
     risk_fig.update_traces(textposition='inside', textinfo='percent+label+value',
                           texttemplate='%{label}<br>$%{value:,.0f}')
+    risk_fig.update_layout(height=400)
 
     # Expansion opportunities (starter/pro on green health)
     expansion = df[(df['health_tier'] == 'Green') & (df['plan_type'].isin(['starter', 'pro']))]
@@ -76,6 +80,7 @@ def create_revenue_analytics(data_loader):
         labels={'arr_bucket': 'ARR Range', 'count': 'Number of Users'},
         color='plan_type'
     )
+    arr_dist_fig.update_layout(height=400)
 
     # Revenue per property
     df['revenue_per_property'] = df['annual_revenue'] / df['portfolio_size'].replace(0, 1)
@@ -88,6 +93,7 @@ def create_revenue_analytics(data_loader):
         color='plan_type'
     )
     rev_per_prop_fig.update_yaxes(tickprefix='$', tickformat=',.0f')
+    rev_per_prop_fig.update_layout(height=400)
 
     # Expansion opportunity table
     expansion_table = dbc.Table.from_dataframe(
