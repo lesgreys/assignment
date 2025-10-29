@@ -30,6 +30,9 @@ app = dash.Dash(
     title="DoorLoop CX Dashboard"
 )
 
+# Expose Flask server for WSGI servers (like Vercel)
+server = app.server
+
 # Define color scheme
 COLORS = {
     'primary': '#4A90E2',
