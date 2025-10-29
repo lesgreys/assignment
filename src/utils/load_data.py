@@ -32,6 +32,8 @@ class DataLoader:
         self.events_df = None
         self.processor = None
         self.loaded = False
+        self.loading_stage = ""
+        self.loading_progress = 0
 
     def load_all_data(self) -> bool:
         """
@@ -41,9 +43,13 @@ class DataLoader:
             True if successful, False otherwise
         """
         try:
+            self.loading_stage = "Initializing..."
+            self.loading_progress = 0
             print("Loading data...")
 
             # Load raw data
+            self.loading_stage = "Loading data files..."
+            self.loading_progress = 20
             with DataConnector() as db:
                 users_df = db.load_users()
                 events_df = db.load_events()
@@ -51,6 +57,8 @@ class DataLoader:
             print(f"✓ Loaded {len(users_df):,} users and {len(events_df):,} events")
 
             # Process data
+            self.loading_stage = "Processing user metrics..."
+            self.loading_progress = 40
             self.processor = CXDataProcessor(users_df, events_df)
 
             # Build master metrics table
@@ -58,10 +66,14 @@ class DataLoader:
             self.master_df = self.processor.build_master_table()
 
             # Calculate cohort retention
+            self.loading_stage = "Calculating cohort retention..."
+            self.loading_progress = 60
             print("Calculating cohort retention...")
             self.cohort_retention = self.processor.calculate_cohort_retention()
 
             # Build churn predictions
+            self.loading_stage = "Building churn predictions..."
+            self.loading_progress = 80
             print("Training churn prediction model...")
             self.churn_predictions, self.churn_model, self.churn_metrics = build_churn_predictions(
                 self.master_df
@@ -77,12 +89,16 @@ class DataLoader:
             # Store events for detailed analysis
             self.events_df = events_df
 
+            self.loading_stage = "Complete!"
+            self.loading_progress = 100
             self.loaded = True
             print("✓ Data loading complete!")
 
             return True
 
         except Exception as e:
+            self.loading_stage = f"Error: {str(e)}"
+            self.loading_progress = 0
             print(f"✗ Error loading data: {e}")
             import traceback
             traceback.print_exc()

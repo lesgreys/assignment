@@ -101,6 +101,7 @@ header = dbc.Navbar(
 # Main layout
 app.layout = dbc.Container([
     dcc.Location(id='url', refresh=False),
+    dcc.Interval(id='loading-interval', interval=1000, n_intervals=0),  # Refresh every second while loading
     header,
     dbc.Row([
         dbc.Col(sidebar, width=2, style={"padding": 0}),
@@ -114,9 +115,10 @@ app.layout = dbc.Container([
 # Routing callback
 @app.callback(
     Output('page-content', 'children'),
-    [Input('url', 'pathname')]
+    [Input('url', 'pathname'),
+     Input('loading-interval', 'n_intervals')]
 )
-def display_page(pathname):
+def display_page(pathname, n_intervals):
     """Route to appropriate page based on URL."""
     try:
         # Load data
@@ -124,15 +126,63 @@ def display_page(pathname):
 
         # Display loading message if data not loaded
         if not loader.loaded:
+            # Attempt to load data
+            import threading
+            if not hasattr(loader, '_loading_thread') or not loader._loading_thread.is_alive():
+                loader._loading_thread = threading.Thread(target=loader.load_all_data)
+                loader._loading_thread.start()
+
             return dbc.Container([
                 dbc.Row([
                     dbc.Col([
-                        dbc.Spinner([
+                        html.Div([
                             html.Div([
-                                html.H3("Loading data..."),
-                                html.P("Please wait while we load and process the data.")
-                            ], className="text-center mt-5")
-                        ], color="primary", type="border")
+                                html.I(className="fas fa-sync fa-spin fa-3x text-primary mb-4"),
+                                html.H3("Loading DoorLoop CX Dashboard", className="mb-3"),
+                                html.Div([
+                                    dbc.Progress(
+                                        value=loader.loading_progress,
+                                        striped=True,
+                                        animated=True,
+                                        color="primary",
+                                        className="mb-3",
+                                        style={"height": "25px"}
+                                    ),
+                                    html.P([
+                                        html.I(className="fas fa-circle-notch fa-spin me-2"),
+                                        html.Span(loader.loading_stage or "Initializing...",
+                                                 id="loading-stage",
+                                                 className="text-muted")
+                                    ], className="mb-4"),
+                                    html.Hr(),
+                                    html.Div([
+                                        html.H5("Loading Stages:", className="mb-3"),
+                                        html.Ul([
+                                            html.Li([
+                                                html.I(className="fas fa-check-circle text-success me-2" if loader.loading_progress >= 20 else "fas fa-circle text-muted me-2"),
+                                                "Loading data files"
+                                            ], className="mb-2"),
+                                            html.Li([
+                                                html.I(className="fas fa-check-circle text-success me-2" if loader.loading_progress >= 40 else "fas fa-circle text-muted me-2"),
+                                                "Processing user metrics"
+                                            ], className="mb-2"),
+                                            html.Li([
+                                                html.I(className="fas fa-check-circle text-success me-2" if loader.loading_progress >= 60 else "fas fa-circle text-muted me-2"),
+                                                "Calculating cohort retention"
+                                            ], className="mb-2"),
+                                            html.Li([
+                                                html.I(className="fas fa-check-circle text-success me-2" if loader.loading_progress >= 80 else "fas fa-circle text-muted me-2"),
+                                                "Building churn predictions"
+                                            ], className="mb-2"),
+                                            html.Li([
+                                                html.I(className="fas fa-check-circle text-success me-2" if loader.loading_progress >= 100 else "fas fa-circle text-muted me-2"),
+                                                "Complete!"
+                                            ])
+                                        ], className="list-unstyled text-start"),
+                                    ], className="mt-4 p-4 bg-light rounded"),
+                                ], style={"max-width": "600px", "margin": "0 auto"})
+                            ], className="text-center mt-5 p-5")
+                        ], className="bg-white rounded shadow-sm")
                     ], width=12)
                 ])
             ], fluid=True)
