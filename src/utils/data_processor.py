@@ -181,6 +181,82 @@ class CXDataProcessor:
 
         return metrics
 
+    def calculate_breadth_of_adoption(self) -> pd.DataFrame:
+        """
+        Calculate breadth of adoption metrics combining explicit features and core actions.
+
+        Breadth of adoption measures how many different features/capabilities a user has adopted,
+        excluding login events. Includes both explicit feature_adopted events and core actions
+        that represent implicit feature usage.
+
+        Returns:
+            DataFrame with columns:
+            - user_id: User identifier
+            - total_features_adopted: Count of unique features/actions adopted
+            - features_list: Comma-separated list of features adopted (for debugging)
+            - adoption_breadth_score: Categorical score (0, 1, 2, 3, 4, 5+)
+        """
+        # Define explicit features (from feature_adopted events)
+        explicit_features = ['analytics_dashboard', 'auto_pay', 'maintenance_module', 'mobile_app']
+
+        # Define core actions (implicit features - exclude login as requested)
+        core_actions = ['property_added', 'tenant_added', 'lease_signed',
+                       'rent_payment_received', 'maintenance_request_created', 'report_generated']
+
+        # Get explicit feature adoptions
+        feature_events = self.events[self.events['event_type'] == 'feature_adopted'].copy()
+        if len(feature_events) > 0:
+            feature_events = feature_events[feature_events['event_value_txt'].isin(explicit_features)]
+            explicit_adoption = feature_events.groupby('user_id')['event_value_txt'].apply(
+                lambda x: list(x.unique())
+            ).reset_index()
+            explicit_adoption.columns = ['user_id', 'explicit_features']
+        else:
+            explicit_adoption = pd.DataFrame(columns=['user_id', 'explicit_features'])
+
+        # Get core action adoptions (at least 1 occurrence counts as adoption)
+        core_events = self.events[self.events['event_type'].isin(core_actions)].copy()
+        if len(core_events) > 0:
+            core_adoption = core_events.groupby('user_id')['event_type'].apply(
+                lambda x: list(x.unique())
+            ).reset_index()
+            core_adoption.columns = ['user_id', 'core_actions']
+        else:
+            core_adoption = pd.DataFrame(columns=['user_id', 'core_actions'])
+
+        # Merge all users from users table to ensure complete coverage
+        all_users = pd.DataFrame({'user_id': self.users['user_id'].unique()})
+
+        # Merge adoptions
+        breadth = all_users.merge(explicit_adoption, on='user_id', how='left')
+        breadth = breadth.merge(core_adoption, on='user_id', how='left')
+
+        # Fill NaN with empty lists
+        breadth['explicit_features'] = breadth['explicit_features'].apply(
+            lambda x: x if isinstance(x, list) else []
+        )
+        breadth['core_actions'] = breadth['core_actions'].apply(
+            lambda x: x if isinstance(x, list) else []
+        )
+
+        # Calculate total unique features adopted
+        breadth['features_list'] = breadth.apply(
+            lambda row: row['explicit_features'] + row['core_actions'], axis=1
+        )
+        breadth['total_features_adopted'] = breadth['features_list'].apply(len)
+
+        # Convert features_list to comma-separated string for easier inspection
+        breadth['features_list'] = breadth['features_list'].apply(
+            lambda x: ', '.join(x) if len(x) > 0 else ''
+        )
+
+        # Create adoption breadth score (categorical: 0, 1, 2, 3, 4, 5+)
+        breadth['adoption_breadth_score'] = breadth['total_features_adopted'].apply(
+            lambda x: '5+' if x >= 5 else str(x)
+        )
+
+        return breadth[['user_id', 'total_features_adopted', 'features_list', 'adoption_breadth_score']]
+
     def calculate_health_scores(self, user_metrics: pd.DataFrame) -> pd.DataFrame:
         """
         Calculate composite health scores.
@@ -294,13 +370,21 @@ class CXDataProcessor:
         core = self.calculate_core_actions()
         features = self.calculate_feature_adoption()
         training = self.calculate_training_metrics()
+        breadth = self.calculate_breadth_of_adoption()
 
         # Merge all DataFrames at once using reduce (much faster than sequential merges)
-        dfs_to_merge = [self.users, activity, logins, core, features, training]
+        dfs_to_merge = [self.users, activity, logins, core, features, training, breadth]
         master = reduce(lambda left, right: left.merge(right, on='user_id', how='left'), dfs_to_merge)
 
-        # Fill NaN values
-        master = master.fillna(0)
+        # Fill NaN values (but preserve features_list strings)
+        numeric_cols = master.select_dtypes(include=[np.number]).columns
+        master[numeric_cols] = master[numeric_cols].fillna(0)
+
+        # Fill string columns with empty string
+        string_cols = master.select_dtypes(include=['object']).columns
+        for col in string_cols:
+            if col in ['features_list', 'adoption_breadth_score']:
+                master[col] = master[col].fillna('0' if col == 'adoption_breadth_score' else '')
 
         # Calculate health scores
         master = self.calculate_health_scores(master)
