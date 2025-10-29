@@ -9,7 +9,7 @@ plotly==5.18.0
 # Data Processing
 pandas==2.1.4
 numpy==1.26.2
-pyarrow==14.0.1
+# pyarrow removed - only used for local disk cache (not needed on Vercel)
 
 # Environment & Configuration
 python-dotenv==1.0.0
