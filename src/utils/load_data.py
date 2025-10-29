@@ -38,12 +38,14 @@ class DataLoader:
         self.loading_stage = ""
         self.loading_progress = 0
 
-        # Cache directories
-        self.cache_dir = Path('data/processed')
-        self.cache_dir.mkdir(parents=True, exist_ok=True)
+        # Cache directories (only for local development)
+        self.use_disk_cache = not os.getenv('VERCEL', False)
 
-        self.model_dir = Path('models')
-        self.model_dir.mkdir(parents=True, exist_ok=True)
+        if self.use_disk_cache:
+            self.cache_dir = Path('data/processed')
+            self.cache_dir.mkdir(parents=True, exist_ok=True)
+            self.model_dir = Path('models')
+            self.model_dir.mkdir(parents=True, exist_ok=True)
 
     def _is_cache_valid(self, cache_file: Path, max_age_hours: int = 24) -> bool:
         """Check if cache file exists and is recent enough."""
@@ -54,7 +56,11 @@ class DataLoader:
         return file_age < timedelta(hours=max_age_hours)
 
     def _load_from_cache(self) -> bool:
-        """Try to load processed data from cache."""
+        """Try to load processed data from cache (only works locally, not on Vercel)."""
+        # Skip disk cache on Vercel (read-only filesystem)
+        if not self.use_disk_cache:
+            return False
+
         try:
             master_cache = self.cache_dir / 'master_df.pkl'
             cohort_cache = self.cache_dir / 'cohort_retention.pkl'
@@ -91,7 +97,12 @@ class DataLoader:
             return False
 
     def _save_to_cache(self):
-        """Save processed data to cache."""
+        """Save processed data to cache (only works locally, not on Vercel)."""
+        # Skip disk cache on Vercel (read-only filesystem)
+        if not self.use_disk_cache:
+            print("Disk caching disabled (serverless environment)")
+            return
+
         try:
             self.master_df.to_pickle(self.cache_dir / 'master_df.pkl')
             self.cohort_retention.to_pickle(self.cache_dir / 'cohort_retention.pkl')

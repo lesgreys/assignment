@@ -19,6 +19,7 @@
     "USE_LOCAL_DATA": "true",
     "DASH_DEBUG": "false",
     "USE_SIMPLE_CHURN": "true",
-    "DATA_PATH": "./data/raw/"
+    "DATA_PATH": "./data/raw/",
+    "VERCEL": "1"
   }
 }
