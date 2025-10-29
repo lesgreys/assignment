@@ -117,21 +117,13 @@ app.layout = dbc.Container([
 @app.callback(
     Output('page-content', 'children'),
     [Input('url', 'pathname'),
-     Input('loading-interval', 'n_intervals')]
+     Input('data-loaded-store', 'data')]
 )
-def display_page(pathname, n_intervals):
+def display_page(pathname, data_loaded_flag):
     """Route to appropriate page based on URL."""
     try:
         # Load data
         loader = get_data_loader()
-
-        # Check what triggered this callback
-        ctx = dash.callback_context
-        if ctx.triggered:
-            trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
-            # If interval triggered this but data is already loaded, don't re-render
-            if trigger_id == 'loading-interval' and loader.loaded:
-                raise dash.exceptions.PreventUpdate
 
         # Display loading message if data not loaded
         if not loader.loaded:
@@ -224,17 +216,19 @@ def display_page(pathname, n_intervals):
         ], color="danger")
 
 
-# Callback to disable interval once data is loaded
+# Callback to disable interval and signal completion once data is loaded
 @app.callback(
-    Output('loading-interval', 'disabled'),
-    Input('loading-interval', 'n_intervals')
+    [Output('loading-interval', 'disabled'),
+     Output('data-loaded-store', 'data')],
+    Input('loading-interval', 'n_intervals'),
+    prevent_initial_call=True
 )
 def disable_interval_when_loaded(n_intervals):
-    """Disable the loading interval once data is fully loaded."""
+    """Disable the loading interval once data is fully loaded and signal completion."""
     loader = get_data_loader()
     if loader.loaded:
-        return True  # Disable interval
-    return False  # Keep interval running
+        return True, True  # Disable interval, signal data loaded
+    return False, False  # Keep interval running, data not loaded yet
 
 
 # Modal toggle callbacks for info icons
