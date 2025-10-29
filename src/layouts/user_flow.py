@@ -43,9 +43,11 @@ def create_user_flow(data_loader):
     events_processed['hour'] = events_processed['event_ts'].dt.hour
     events_processed['day_of_week'] = events_processed['event_ts'].dt.day_name()
 
-    # Limit to last 180 days for performance (still covers most analysis needs)
-    cutoff_date = pd.Timestamp('2025-08-01') - timedelta(days=180)
-    events_processed = events_processed[events_processed['event_ts'] >= cutoff_date]
+    # Limit to last 180 days for performance (dynamically based on latest event date)
+    if len(events_processed) > 0:
+        max_date = events_processed['event_ts'].max()
+        cutoff_date = max_date - timedelta(days=180)
+        events_processed = events_processed[events_processed['event_ts'] >= cutoff_date]
 
     # Layout
     layout = dbc.Container([
@@ -541,7 +543,7 @@ def update_user_flow(selected_user, active_filter, plan_filter, health_filter, c
             html.P("Event Types")
         ])], className="text-center shadow-sm"), md=2),
         dbc.Col(dbc.Card([dbc.CardBody([
-            html.H4(f"{len(filtered_events[filtered_events['event_date'] >= (pd.Timestamp('2025-08-01') - timedelta(days=7)).date()]):,}" if len(filtered_events) > 0 else "0"),
+            html.H4(f"{len(filtered_events[filtered_events['event_date'] >= (filtered_events['event_ts'].max() - timedelta(days=7)).date()]) if len(filtered_events) > 0 else 0:,}"),
             html.P("Last 7 Days")
         ])], className="text-center shadow-sm"), md=2),
     ])
@@ -762,8 +764,8 @@ def update_user_flow(selected_user, active_filter, plan_filter, health_filter, c
 
     # === RECENT ACTIVITY ===
     if len(filtered_events) > 0:
-        # Fixed reference date for consistent metrics (data snapshot date)
-        cutoff_date = pd.Timestamp('2025-08-01') - timedelta(days=7)
+        # Dynamic date based on latest event in filtered data
+        cutoff_date = filtered_events['event_ts'].max() - timedelta(days=7)
         recent_events = filtered_events[filtered_events['event_ts'] >= cutoff_date]
         recent_daily = recent_events.groupby('event_date').size().reset_index(name='count')
         recent_daily['event_date'] = pd.to_datetime(recent_daily['event_date'])
