@@ -6,8 +6,14 @@ Supports both Snowflake connection and local CSV files.
 import os
 import pandas as pd
 from dotenv import load_dotenv
-import snowflake.connector
 from typing import Optional, Dict, Any
+
+# Make snowflake import optional for deployments without it
+try:
+    import snowflake.connector
+    SNOWFLAKE_AVAILABLE = True
+except ImportError:
+    SNOWFLAKE_AVAILABLE = False
 
 # Load environment variables
 load_dotenv()
@@ -34,6 +40,12 @@ class DataConnector:
 
     def _connect_snowflake(self):
         """Establish connection to Snowflake."""
+        if not SNOWFLAKE_AVAILABLE:
+            print("✗ Snowflake connector not available")
+            print("  Falling back to local data mode...")
+            self.use_local = True
+            return
+
         try:
             # Build connection parameters
             conn_params = {

@@ -3,7 +3,10 @@
   "builds": [
     {
       "src": "api/index.py",
-      "use": "@vercel/python"
+      "use": "@vercel/python",
+      "config": {
+        "maxLambdaSize": "250mb"
+      }
     }
   ],
   "routes": [
@@ -14,6 +17,7 @@
   ],
   "env": {
     "USE_LOCAL_DATA": "true",
-    "DASH_DEBUG": "false"
+    "DASH_DEBUG": "false",
+    "USE_SIMPLE_CHURN": "true"
   }
 }

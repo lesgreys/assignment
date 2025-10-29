@@ -7,7 +7,18 @@ import os
 import pandas as pd
 from .db_connector import DataConnector
 from .data_processor import CXDataProcessor
-from .churn_model import build_churn_predictions
+
+# Use simple churn model for serverless deployments (no sklearn)
+USE_SIMPLE_CHURN = os.getenv('USE_SIMPLE_CHURN', 'true').lower() == 'true'
+
+if USE_SIMPLE_CHURN:
+    from .churn_model_simple import build_churn_predictions
+else:
+    try:
+        from .churn_model import build_churn_predictions
+    except ImportError:
+        # Fallback to simple model if sklearn not available
+        from .churn_model_simple import build_churn_predictions
 
 
 class DataLoader:
