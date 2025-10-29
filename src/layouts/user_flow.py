@@ -36,6 +36,17 @@ def create_user_flow(data_loader):
         label = f"{row['user_id']} | {row['plan_type']} | {row['event_count']} events | Health: {row['health_score']:.0f}"
         user_options.append({'label': label, 'value': row['user_id']})
 
+    # Pre-process datetime conversions once to avoid repeated processing in callbacks
+    events_processed = events_df.copy()
+    events_processed['event_ts'] = pd.to_datetime(events_processed['event_ts'])
+    events_processed['event_date'] = events_processed['event_ts'].dt.date
+    events_processed['hour'] = events_processed['event_ts'].dt.hour
+    events_processed['day_of_week'] = events_processed['event_ts'].dt.day_name()
+
+    # Limit to last 180 days for performance (still covers most analysis needs)
+    cutoff_date = pd.Timestamp('2025-08-01') - timedelta(days=180)
+    events_processed = events_processed[events_processed['event_ts'] >= cutoff_date]
+
     # Layout
     layout = dbc.Container([
         # Header
@@ -183,18 +194,7 @@ def create_user_flow(data_loader):
         # Event timeline table (for specific user)
         html.Div(id='user-event-timeline-table', className="mb-4"),
 
-        # Store data for callbacks
-        # Pre-process datetime conversions once to avoid repeated processing in callbacks
-        events_processed = events_df.copy()
-        events_processed['event_ts'] = pd.to_datetime(events_processed['event_ts'])
-        events_processed['event_date'] = events_processed['event_ts'].dt.date
-        events_processed['hour'] = events_processed['event_ts'].dt.hour
-        events_processed['day_of_week'] = events_processed['event_ts'].dt.day_name()
-
-        # Limit to last 180 days for performance (still covers most analysis needs)
-        cutoff_date = pd.Timestamp('2025-08-01') - timedelta(days=180)
-        events_processed = events_processed[events_processed['event_ts'] >= cutoff_date]
-
+        # Store data for callbacks (already pre-processed above)
         dcc.Store(id='user-flow-data-store', data={
             'events': events_processed.to_dict('records'),
             'users': df[['user_id', 'plan_type', 'annual_revenue', 'health_score',
@@ -223,6 +223,9 @@ def update_user_dropdown_filters(active_filter, plan_filter, health_filter, csm_
     # Reconstruct dataframes
     events_df = pd.DataFrame(stored_data['events'])
     users_df = pd.DataFrame(stored_data['users'])
+
+    # Convert timestamps back to datetime for filtering
+    events_df['event_ts'] = pd.to_datetime(events_df['event_ts'])
 
     # Apply filters
     filtered_users = users_df.copy()
@@ -404,8 +407,9 @@ def update_user_flow(selected_user, active_filter, plan_filter, health_filter, c
     events_df = pd.DataFrame(stored_data['events'])
     users_df = pd.DataFrame(stored_data['users'])
 
-    # Convert timestamps back to datetime (already has derived columns)
+    # Convert timestamps and dates back to proper types (stored as strings in dict)
     events_df['event_ts'] = pd.to_datetime(events_df['event_ts'])
+    events_df['event_date'] = pd.to_datetime(events_df['event_date']).dt.date
 
     # Apply filters to users dataframe FIRST (for aggregate views)
     filtered_users_df = users_df.copy()
