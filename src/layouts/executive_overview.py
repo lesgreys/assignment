@@ -29,17 +29,8 @@ def create_executive_overview(data_loader):
     # Calculate churn rate
     churn_rate = (stats['inactive_users'] / stats['total_users']) * 100
 
-    # KPI Cards with info icons
-    kpi_row = dbc.Row([
-        dbc.Col(SmartKPICard(
-            "kpi_total_arr",
-            "Total ARR",
-            f"${stats['total_arr']:,.0f}",
-            f"Avg: ${stats['avg_arr']:,.0f}",
-            "fas fa-dollar-sign",
-            "success",
-            page_id="executive_overview"
-        ), md=3),
+    # KPI Cards Row 1: User Metrics
+    kpi_row_1 = dbc.Row([
         dbc.Col(SmartKPICard(
             "kpi_active_users",
             "Active Users",
@@ -65,6 +56,40 @@ def create_executive_overview(data_loader):
             "Customer satisfaction",
             "fas fa-star",
             "info",
+            page_id="executive_overview"
+        ), md=3),
+        dbc.Col(SmartKPICard(
+            "kpi_total_arr",
+            "Total ARR",
+            f"${stats['total_arr']:,.0f}",
+            f"Avg: ${stats['avg_arr']:,.0f}",
+            "fas fa-dollar-sign",
+            "success",
+            page_id="executive_overview"
+        ), md=3),
+    ], className="mb-4")
+
+    # KPI Cards Row 2: Revenue Retention Metrics
+    grr_color = "success" if stats['grr'] > 90 else "warning" if stats['grr'] > 80 else "danger"
+    nrr_color = "success" if stats['nrr'] > 100 else "warning" if stats['nrr'] > 90 else "danger"
+
+    kpi_row_2 = dbc.Row([
+        dbc.Col(SmartKPICard(
+            "kpi_grr",
+            "GRR (Monthly)",
+            f"{stats['grr']:.1f}%",
+            "Gross Revenue Retention",
+            "fas fa-shield-alt",
+            grr_color,
+            page_id="executive_overview"
+        ), md=3),
+        dbc.Col(SmartKPICard(
+            "kpi_nrr",
+            "NRR (Monthly)",
+            f"{stats['nrr']:.1f}%",
+            "Net Revenue Retention",
+            "fas fa-chart-line",
+            nrr_color,
             page_id="executive_overview"
         ), md=3),
     ], className="mb-4")
@@ -152,8 +177,11 @@ def create_executive_overview(data_loader):
     layout = dbc.Container([
         html.H2("Executive Overview", className="mb-4"),
 
-        # KPIs
-        kpi_row,
+        # KPIs Row 1: User Metrics
+        kpi_row_1,
+
+        # KPIs Row 2: Revenue Retention
+        kpi_row_2,
 
         # Charts row 1 - with info icons
         dbc.Row([

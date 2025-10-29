@@ -1,0 +1,26 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "api/index.py",
+      "use": "@vercel/python"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "api/index.py"
+    }
+  ],
+  "env": {
+    "USE_LOCAL_DATA": "true",
+    "DASH_DEBUG": "false",
+    "SNOWFLAKE_ACCOUNT": "@snowflake_account",
+    "SNOWFLAKE_USER": "@snowflake_user",
+    "SNOWFLAKE_AUTHENTICATOR": "@snowflake_authenticator",
+    "SNOWFLAKE_WAREHOUSE": "@snowflake_warehouse",
+    "SNOWFLAKE_DATABASE": "@snowflake_database",
+    "SNOWFLAKE_SCHEMA": "@snowflake_schema",
+    "SNOWFLAKE_ROLE": "@snowflake_role"
+  }
+}

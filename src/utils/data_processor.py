@@ -35,13 +35,15 @@ class CXDataProcessor:
             self.events['event_ts'] = pd.to_datetime(self.events['event_ts'])
 
         # Calculate derived user fields
-        today = pd.Timestamp.now()
+        # Fixed reference date for consistent metrics (data snapshot date)
+        today = pd.Timestamp('2025-08-01')
         self.users['account_age_days'] = (today - self.users['signup_date']).dt.days
         self.users['days_to_renewal'] = (self.users['renewal_due_date'] - today).dt.days
 
     def calculate_user_activity_metrics(self) -> pd.DataFrame:
         """Calculate user activity metrics from events."""
-        today = pd.Timestamp.now()
+        # Fixed reference date for consistent metrics (data snapshot date)
+        today = pd.Timestamp('2025-08-01')
 
         # Overall activity
         activity = self.events.groupby('user_id').agg({
@@ -84,7 +86,8 @@ class CXDataProcessor:
         metrics.columns = ['user_id', 'total_logins', 'avg_session_length']
 
         # 30-day metrics
-        today = pd.Timestamp.now()
+        # Fixed reference date for consistent metrics (data snapshot date)
+        today = pd.Timestamp('2025-08-01')
         recent = logins[logins['event_ts'] >= today - timedelta(days=30)]
         recent_metrics = recent.groupby('user_id').agg({
             'event_id': 'count',
@@ -331,3 +334,97 @@ class CXDataProcessor:
         retention['retention_rate'] = (retention['active_users'] / retention['cohort_users']) * 100
 
         return retention
+
+    def calculate_revenue_retention_metrics(self, reference_date='2025-08-01') -> dict:
+        """
+        Calculate GRR (Gross Revenue Retention) and NRR (Net Revenue Retention) metrics.
+
+        Uses synthetic historical data approach:
+        - Assumes starting MRR at signup = current annual_revenue / 12
+        - Tracks churned revenue from inactive users
+        - Calculates monthly cohort-based retention
+
+        Args:
+            reference_date: Fixed reference date for calculations (default: '2025-08-01')
+
+        Returns:
+            dict with keys:
+                - overall_grr: Overall gross revenue retention %
+                - overall_nrr: Overall net revenue retention %
+                - monthly_retention: DataFrame with monthly GRR/NRR trends
+                - cohort_retention: DataFrame with cohort-level retention
+                - plan_retention: DataFrame with plan-level retention
+        """
+        ref_date = pd.Timestamp(reference_date)
+        df = self.users.copy()
+
+        # Calculate MRR (assume ARR / 12)
+        df['mrr'] = df['annual_revenue'] / 12
+
+        # Ensure datetime
+        df['signup_date'] = pd.to_datetime(df['signup_date'])
+
+        # Create cohort month
+        df['cohort_month'] = df['signup_date'].dt.to_period('M')
+
+        # Identify churned users and their revenue
+        df['is_churned'] = df['is_active'] == 0
+        df['churned_mrr'] = df['mrr'].where(df['is_churned'], 0)
+        df['retained_mrr'] = df['mrr'].where(~df['is_churned'], 0)
+
+        # Calculate cohort-level retention
+        cohort_metrics = df.groupby('cohort_month').agg({
+            'mrr': 'sum',  # Starting MRR
+            'retained_mrr': 'sum',  # Current MRR from retained customers
+            'churned_mrr': 'sum',  # Lost MRR from churned customers
+            'user_id': 'count'  # Cohort size
+        }).reset_index()
+        cohort_metrics.columns = ['cohort_month', 'starting_mrr', 'current_mrr', 'churned_mrr', 'cohort_size']
+
+        # Calculate GRR and NRR per cohort
+        cohort_metrics['grr'] = (cohort_metrics['current_mrr'] / cohort_metrics['starting_mrr']) * 100
+        cohort_metrics['nrr'] = (cohort_metrics['current_mrr'] / cohort_metrics['starting_mrr']) * 100
+
+        # Replace inf/nan with 0
+        cohort_metrics = cohort_metrics.replace([np.inf, -np.inf], 0).fillna(0)
+
+        # Calculate overall weighted average GRR/NRR
+        total_starting_mrr = cohort_metrics['starting_mrr'].sum()
+        if total_starting_mrr > 0:
+            overall_grr = (cohort_metrics['current_mrr'].sum() / total_starting_mrr) * 100
+            overall_nrr = (cohort_metrics['current_mrr'].sum() / total_starting_mrr) * 100
+        else:
+            overall_grr = 0
+            overall_nrr = 0
+
+        # Calculate monthly retention trend (last 12 months)
+        df['months_since_signup'] = ((ref_date.year - df['signup_date'].dt.year) * 12 +
+                                     (ref_date.month - df['signup_date'].dt.month))
+
+        # Filter to cohorts with at least 1 month of history
+        monthly_cohorts = df[df['months_since_signup'] >= 1].copy()
+        monthly_retention = monthly_cohorts.groupby('cohort_month').agg({
+            'retained_mrr': 'sum',
+            'mrr': 'sum'
+        }).reset_index()
+        monthly_retention['grr'] = (monthly_retention['retained_mrr'] / monthly_retention['mrr']) * 100
+        monthly_retention['nrr'] = (monthly_retention['retained_mrr'] / monthly_retention['mrr']) * 100
+        monthly_retention = monthly_retention.replace([np.inf, -np.inf], 0).fillna(0)
+
+        # Calculate plan-level retention
+        plan_metrics = df.groupby('plan_type').agg({
+            'mrr': 'sum',
+            'retained_mrr': 'sum',
+            'churned_mrr': 'sum'
+        }).reset_index()
+        plan_metrics['grr'] = (plan_metrics['retained_mrr'] / plan_metrics['mrr']) * 100
+        plan_metrics['nrr'] = (plan_metrics['retained_mrr'] / plan_metrics['mrr']) * 100
+        plan_metrics = plan_metrics.replace([np.inf, -np.inf], 0).fillna(0)
+
+        return {
+            'overall_grr': overall_grr,
+            'overall_nrr': overall_nrr,
+            'monthly_retention': monthly_retention,
+            'cohort_retention': cohort_metrics,
+            'plan_retention': plan_metrics
+        }

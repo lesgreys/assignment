@@ -19,6 +19,7 @@ class DataLoader:
         self.churn_predictions = None
         self.cohort_retention = None
         self.events_df = None
+        self.processor = None
         self.loaded = False
 
     def load_all_data(self) -> bool:
@@ -39,15 +40,15 @@ class DataLoader:
             print(f"✓ Loaded {len(users_df):,} users and {len(events_df):,} events")
 
             # Process data
-            processor = CXDataProcessor(users_df, events_df)
+            self.processor = CXDataProcessor(users_df, events_df)
 
             # Build master metrics table
             print("Processing user metrics...")
-            self.master_df = processor.build_master_table()
+            self.master_df = self.processor.build_master_table()
 
             # Calculate cohort retention
             print("Calculating cohort retention...")
-            self.cohort_retention = processor.calculate_cohort_retention()
+            self.cohort_retention = self.processor.calculate_cohort_retention()
 
             # Build churn predictions
             print("Training churn prediction model...")
@@ -101,17 +102,22 @@ class DataLoader:
 
         df = self.master_df
 
+        # Calculate revenue retention metrics
+        retention_metrics = self.processor.calculate_revenue_retention_metrics()
+
         return {
             'total_users': len(df),
             'active_users': df[df['is_active'] == 1].shape[0],
             'inactive_users': df[df['is_active'] == 0].shape[0],
-            'total_arr': df['annual_revenue'].sum(),
-            'avg_arr': df['annual_revenue'].mean(),
+            'total_arr': df['annual_revenue'].sum(),  # Sum across all users (active + inactive)
+            'avg_arr': df['annual_revenue'].mean(),  # Average across all users (active + inactive)
             'avg_nps': df['nps_score'].mean(),
             'health_distribution': df['health_tier'].value_counts().to_dict(),
             'plan_distribution': df['plan_type'].value_counts().to_dict(),
             'high_risk_users': df[df['churn_risk_tier'] == 'High'].shape[0],
             'renewal_risk_users': df[df['at_renewal_risk'] == 1].shape[0],
+            'grr': retention_metrics['overall_grr'],  # Gross Revenue Retention %
+            'nrr': retention_metrics['overall_nrr'],  # Net Revenue Retention %
         }
 
 

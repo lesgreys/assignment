@@ -100,10 +100,10 @@ def SmartKPICard(component_id, title, value, subtitle="", icon="fas fa-chart-lin
                 html.Div([
                     html.Div(title_content),
                     html.H3(value, className="mb-0", style={"overflow": "hidden", "textOverflow": "ellipsis", "whiteSpace": "nowrap"}),
-                    html.Small(subtitle, className="text-muted", style={"overflow": "hidden", "textOverflow": "ellipsis", "whiteSpace": "nowrap", "display": "block"})
+                    html.Small(subtitle, className="text-muted", style={"overflow": "hidden", "textOverflow": "ellipsis", "display": "block", "lineHeight": "1.2"})
                 ], className="col-9")
             ], className="row align-items-center")
-        ], style={"minHeight": "120px", "height": "120px", "overflow": "hidden"})
+        ], style={"minHeight": "120px", "maxHeight": "140px", "overflow": "hidden"})
     ], className="mb-3 shadow-sm")
 
 
