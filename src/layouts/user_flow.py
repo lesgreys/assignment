@@ -43,11 +43,7 @@ def create_user_flow(data_loader):
     events_processed['hour'] = events_processed['event_ts'].dt.hour
     events_processed['day_of_week'] = events_processed['event_ts'].dt.day_name()
 
-    # Limit to last 180 days for performance (dynamically based on latest event date)
-    if len(events_processed) > 0:
-        max_date = events_processed['event_ts'].max()
-        cutoff_date = max_date - timedelta(days=180)
-        events_processed = events_processed[events_processed['event_ts'] >= cutoff_date]
+    # No date filtering here - let user control via date range selector in UI
 
     # Layout
     layout = dbc.Container([
@@ -116,6 +112,38 @@ def create_user_flow(data_loader):
                     style={'fontSize': '0.9rem'}
                 )
             ], md=3)
+        ], className="mb-3 p-3 bg-light rounded"),
+
+        # Date range filter
+        dbc.Row([
+            dbc.Col([
+                html.Label("Date Range Preset:", className="fw-bold mb-1", style={'fontSize': '0.9rem'}),
+                dcc.Dropdown(
+                    id='user-flow-date-range',
+                    options=[
+                        {'label': 'All Time', 'value': 'all'},
+                        {'label': 'Last 30 Days', 'value': '30'},
+                        {'label': 'Last 90 Days', 'value': '90'},
+                        {'label': 'Last 180 Days', 'value': '180'},
+                        {'label': 'Last Year', 'value': '365'},
+                        {'label': 'YoY (Year over Year)', 'value': 'yoy'},
+                        {'label': 'Custom Range →', 'value': 'custom'}
+                    ],
+                    value='all',
+                    clearable=False,
+                    style={'fontSize': '0.9rem'}
+                )
+            ], md=3),
+            dbc.Col([
+                html.Label("Custom Date Range:", className="fw-bold mb-1", style={'fontSize': '0.9rem'}),
+                dcc.DatePickerRange(
+                    id='user-flow-custom-date-range',
+                    display_format='YYYY-MM-DD',
+                    start_date_placeholder_text='Start Date',
+                    end_date_placeholder_text='End Date',
+                    style={'fontSize': '0.9rem'}
+                )
+            ], md=6)
         ], className="mb-3 p-3 bg-light rounded"),
 
         # User selector
@@ -399,10 +427,13 @@ def create_daily_hover_text(filtered_events, daily_events):
      Input('user-flow-active-filter', 'value'),
      Input('user-flow-plan-filter', 'value'),
      Input('user-flow-health-filter', 'value'),
-     Input('user-flow-csm-filter', 'value')],
+     Input('user-flow-csm-filter', 'value'),
+     Input('user-flow-date-range', 'value'),
+     Input('user-flow-custom-date-range', 'start_date'),
+     Input('user-flow-custom-date-range', 'end_date')],
     [State('user-flow-data-store', 'data')]
 )
-def update_user_flow(selected_user, active_filter, plan_filter, health_filter, csm_filter, stored_data):
+def update_user_flow(selected_user, active_filter, plan_filter, health_filter, csm_filter, date_range, custom_start, custom_end, stored_data):
     """Update all visualizations based on selected user and active filters."""
 
     # Reconstruct dataframes from stored data (already pre-processed)
@@ -412,6 +443,30 @@ def update_user_flow(selected_user, active_filter, plan_filter, health_filter, c
     # Convert timestamps and dates back to proper types (stored as strings in dict)
     events_df['event_ts'] = pd.to_datetime(events_df['event_ts'])
     events_df['event_date'] = pd.to_datetime(events_df['event_date']).dt.date
+
+    # Apply date range filter
+    if date_range == 'custom' and custom_start and custom_end:
+        # Use custom date range from date picker
+        start_dt = pd.to_datetime(custom_start)
+        end_dt = pd.to_datetime(custom_end) + timedelta(days=1)  # Include end date
+        events_df = events_df[(events_df['event_ts'] >= start_dt) & (events_df['event_ts'] < end_dt)]
+    elif date_range == 'yoy':
+        # Year over Year - last 365 days plus same period previous year
+        max_date = events_df['event_ts'].max()
+        # Current year period
+        current_year_start = max_date - timedelta(days=365)
+        # Previous year period
+        previous_year_start = current_year_start - timedelta(days=365)
+        previous_year_end = max_date - timedelta(days=365)
+        # Include both periods
+        events_df = events_df[
+            ((events_df['event_ts'] >= current_year_start) & (events_df['event_ts'] <= max_date)) |
+            ((events_df['event_ts'] >= previous_year_start) & (events_df['event_ts'] <= previous_year_end))
+        ]
+    elif date_range != 'all':
+        # Preset ranges (30, 90, 180, 365 days)
+        cutoff_date = events_df['event_ts'].max() - timedelta(days=int(date_range))
+        events_df = events_df[events_df['event_ts'] >= cutoff_date]
 
     # Apply filters to users dataframe FIRST (for aggregate views)
     filtered_users_df = users_df.copy()
