@@ -184,8 +184,19 @@ def create_user_flow(data_loader):
         html.Div(id='user-event-timeline-table', className="mb-4"),
 
         # Store data for callbacks
+        # Pre-process datetime conversions once to avoid repeated processing in callbacks
+        events_processed = events_df.copy()
+        events_processed['event_ts'] = pd.to_datetime(events_processed['event_ts'])
+        events_processed['event_date'] = events_processed['event_ts'].dt.date
+        events_processed['hour'] = events_processed['event_ts'].dt.hour
+        events_processed['day_of_week'] = events_processed['event_ts'].dt.day_name()
+
+        # Limit to last 180 days for performance (still covers most analysis needs)
+        cutoff_date = pd.Timestamp('2025-08-01') - timedelta(days=180)
+        events_processed = events_processed[events_processed['event_ts'] >= cutoff_date]
+
         dcc.Store(id='user-flow-data-store', data={
-            'events': events_df.to_dict('records'),
+            'events': events_processed.to_dict('records'),
             'users': df[['user_id', 'plan_type', 'annual_revenue', 'health_score',
                         'health_tier', 'nps_score', 'signup_date', 'is_active', 'csm_id']].to_dict('records')
         })
@@ -389,9 +400,12 @@ def create_daily_hover_text(filtered_events, daily_events):
 def update_user_flow(selected_user, active_filter, plan_filter, health_filter, csm_filter, stored_data):
     """Update all visualizations based on selected user and active filters."""
 
-    # Reconstruct dataframes from stored data
+    # Reconstruct dataframes from stored data (already pre-processed)
     events_df = pd.DataFrame(stored_data['events'])
     users_df = pd.DataFrame(stored_data['users'])
+
+    # Convert timestamps back to datetime (already has derived columns)
+    events_df['event_ts'] = pd.to_datetime(events_df['event_ts'])
 
     # Apply filters to users dataframe FIRST (for aggregate views)
     filtered_users_df = users_df.copy()
@@ -409,12 +423,6 @@ def update_user_flow(selected_user, active_filter, plan_filter, health_filter, c
 
     if csm_filter != 'all' and 'csm_id' in filtered_users_df.columns:
         filtered_users_df = filtered_users_df[filtered_users_df['csm_id'].astype(str) == csm_filter]
-
-    # Convert timestamp
-    events_df['event_ts'] = pd.to_datetime(events_df['event_ts'])
-    events_df['event_date'] = events_df['event_ts'].dt.date
-    events_df['hour'] = events_df['event_ts'].dt.hour
-    events_df['day_of_week'] = events_df['event_ts'].dt.day_name()
 
     # Filter events based on user selection and active filters
     if selected_user != 'ALL':
@@ -665,22 +673,26 @@ def update_user_flow(selected_user, active_filter, plan_filter, health_filter, c
     if len(filtered_events) > 0:
         # For specific user, show their journey; for all users, sample
         if selected_user != 'ALL':
-            sample_events = filtered_events.sort_values('event_ts')
+            sample_events = filtered_events.sort_values(['user_id', 'event_ts'])
         else:
+            # Sample 500 users for performance
             sample_users = filtered_events['user_id'].unique()[:500]
-            sample_events = filtered_events[filtered_events['user_id'].isin(sample_users)]
+            sample_events = filtered_events[filtered_events['user_id'].isin(sample_users)].sort_values(['user_id', 'event_ts'])
 
+        # Optimized: Use groupby instead of loop (much faster)
+        # Get first 3 events per user
+        first_events = sample_events.groupby('user_id').head(3)
+
+        # Build sequences efficiently
         user_sequences = []
-        for user_id in sample_events['user_id'].unique():
-            user_events = sample_events[sample_events['user_id'] == user_id].sort_values('event_ts')
-            if len(user_events) >= 2:
-                events_list = user_events['event_type'].head(3).tolist()
-                if len(events_list) >= 2:
-                    user_sequences.append({
-                        'first': events_list[0],
-                        'second': events_list[1],
-                        'third': events_list[2] if len(events_list) > 2 else None
-                    })
+        for user_id, group in first_events.groupby('user_id'):
+            events_list = group['event_type'].tolist()
+            if len(events_list) >= 2:
+                user_sequences.append({
+                    'first': events_list[0],
+                    'second': events_list[1],
+                    'third': events_list[2] if len(events_list) > 2 else None
+                })
 
         if user_sequences:
             seq_df = pd.DataFrame(user_sequences)
