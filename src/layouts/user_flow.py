@@ -204,7 +204,8 @@ def create_user_flow(data_loader):
      Input('user-flow-plan-filter', 'value'),
      Input('user-flow-health-filter', 'value'),
      Input('user-flow-csm-filter', 'value')],
-    [State('user-flow-data-store', 'data')]
+    [State('user-flow-data-store', 'data')],
+    prevent_initial_call=True
 )
 def update_user_dropdown_filters(active_filter, plan_filter, health_filter, csm_filter, stored_data):
     """Filter user dropdown based on selected filters."""

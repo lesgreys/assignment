@@ -33,6 +33,7 @@ class DataLoader:
         self.churn_predictions = None
         self.cohort_retention = None
         self.events_df = None
+        self.users_df = None  # Store users_df for processor recreation
         self.processor = None
         self.loaded = False
         self.loading_stage = ""
@@ -66,13 +67,15 @@ class DataLoader:
             cohort_cache = self.cache_dir / 'cohort_retention.pkl'
             events_cache = self.cache_dir / 'events_df.pkl'
             churn_cache = self.cache_dir / 'churn_predictions.pkl'
+            users_cache = self.cache_dir / 'users_df.pkl'
 
             # Check if all cache files are valid
             if not all([
                 self._is_cache_valid(master_cache),
                 self._is_cache_valid(cohort_cache),
                 self._is_cache_valid(events_cache),
-                self._is_cache_valid(churn_cache)
+                self._is_cache_valid(churn_cache),
+                self._is_cache_valid(users_cache)
             ]):
                 return False
 
@@ -85,6 +88,10 @@ class DataLoader:
             self.cohort_retention = pd.read_pickle(cohort_cache)
             self.events_df = pd.read_pickle(events_cache)
             self.churn_predictions = pd.read_pickle(churn_cache)
+            self.users_df = pd.read_pickle(users_cache)
+
+            # Recreate processor object (needed for revenue retention metrics)
+            self.processor = CXDataProcessor(self.users_df, self.events_df)
 
             self.loading_stage = "Cache loaded successfully!"
             self.loading_progress = 100
@@ -108,6 +115,7 @@ class DataLoader:
             self.cohort_retention.to_pickle(self.cache_dir / 'cohort_retention.pkl')
             self.events_df.to_pickle(self.cache_dir / 'events_df.pkl')
             self.churn_predictions.to_pickle(self.cache_dir / 'churn_predictions.pkl')
+            self.users_df.to_pickle(self.cache_dir / 'users_df.pkl')
             print("✓ Data cached to disk")
         except Exception as e:
             print(f"Cache save failed: {e}")
@@ -136,6 +144,9 @@ class DataLoader:
                 events_df = db.load_events()
 
             print(f"✓ Loaded {len(users_df):,} users and {len(events_df):,} events")
+
+            # Store users_df for caching and processor recreation
+            self.users_df = users_df
 
             # Process data
             self.loading_stage = "Processing user metrics..."
@@ -215,6 +226,10 @@ class DataLoader:
             self.load_all_data()
 
         df = self.master_df
+
+        # Ensure processor is available (recreate if needed)
+        if self.processor is None and self.users_df is not None and self.events_df is not None:
+            self.processor = CXDataProcessor(self.users_df, self.events_df)
 
         # Calculate revenue retention metrics
         retention_metrics = self.processor.calculate_revenue_retention_metrics()

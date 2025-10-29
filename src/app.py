@@ -101,7 +101,7 @@ header = dbc.Navbar(
 # Main layout
 app.layout = dbc.Container([
     dcc.Location(id='url', refresh=False),
-    dcc.Interval(id='loading-interval', interval=1000, n_intervals=0),  # Refresh every second while loading
+    dcc.Interval(id='loading-interval', interval=1000, n_intervals=0, disabled=False),  # Refresh every second while loading
     dcc.Store(id='data-loaded-store', storage_type='session'),  # Persist across page changes
     header,
     dbc.Row([
@@ -124,6 +124,14 @@ def display_page(pathname, n_intervals):
     try:
         # Load data
         loader = get_data_loader()
+
+        # Check what triggered this callback
+        ctx = dash.callback_context
+        if ctx.triggered:
+            trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
+            # If interval triggered this but data is already loaded, don't re-render
+            if trigger_id == 'loading-interval' and loader.loaded:
+                raise dash.exceptions.PreventUpdate
 
         # Display loading message if data not loaded
         if not loader.loaded:
@@ -214,6 +222,19 @@ def display_page(pathname, n_intervals):
             html.P("Please check that data files are available and configuration is correct.",
                   className="mb-0")
         ], color="danger")
+
+
+# Callback to disable interval once data is loaded
+@app.callback(
+    Output('loading-interval', 'disabled'),
+    Input('loading-interval', 'n_intervals')
+)
+def disable_interval_when_loaded(n_intervals):
+    """Disable the loading interval once data is fully loaded."""
+    loader = get_data_loader()
+    if loader.loaded:
+        return True  # Disable interval
+    return False  # Keep interval running
 
 
 # Modal toggle callbacks for info icons
