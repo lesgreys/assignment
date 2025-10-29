@@ -8,7 +8,6 @@ import dash
 from dash import dcc, html, Input, Output, State
 import dash_bootstrap_components as dbc
 from datetime import datetime
-from flask_caching import Cache
 
 # Import layouts
 from layouts.executive_overview import create_executive_overview
@@ -33,12 +32,6 @@ app = dash.Dash(
 
 # Expose Flask server for WSGI servers (like Vercel)
 server = app.server
-
-# Configure caching
-cache = Cache(app.server, config={
-    'CACHE_TYPE': 'SimpleCache',  # In-memory cache
-    'CACHE_DEFAULT_TIMEOUT': 3600  # 1 hour default
-})
 
 # Define color scheme
 COLORS = {

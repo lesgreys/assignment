@@ -56,10 +56,10 @@ class DataLoader:
     def _load_from_cache(self) -> bool:
         """Try to load processed data from cache."""
         try:
-            master_cache = self.cache_dir / 'master_df.parquet'
-            cohort_cache = self.cache_dir / 'cohort_retention.parquet'
-            events_cache = self.cache_dir / 'events_df.parquet'
-            churn_cache = self.cache_dir / 'churn_predictions.parquet'
+            master_cache = self.cache_dir / 'master_df.pkl'
+            cohort_cache = self.cache_dir / 'cohort_retention.pkl'
+            events_cache = self.cache_dir / 'events_df.pkl'
+            churn_cache = self.cache_dir / 'churn_predictions.pkl'
 
             # Check if all cache files are valid
             if not all([
@@ -74,11 +74,11 @@ class DataLoader:
             self.loading_stage = "Loading from cache..."
             self.loading_progress = 50
 
-            # Load cached data
-            self.master_df = pd.read_parquet(master_cache)
-            self.cohort_retention = pd.read_parquet(cohort_cache)
-            self.events_df = pd.read_parquet(events_cache)
-            self.churn_predictions = pd.read_parquet(churn_cache)
+            # Load cached data using pickle
+            self.master_df = pd.read_pickle(master_cache)
+            self.cohort_retention = pd.read_pickle(cohort_cache)
+            self.events_df = pd.read_pickle(events_cache)
+            self.churn_predictions = pd.read_pickle(churn_cache)
 
             self.loading_stage = "Cache loaded successfully!"
             self.loading_progress = 100
@@ -93,10 +93,10 @@ class DataLoader:
     def _save_to_cache(self):
         """Save processed data to cache."""
         try:
-            self.master_df.to_parquet(self.cache_dir / 'master_df.parquet')
-            self.cohort_retention.to_parquet(self.cache_dir / 'cohort_retention.parquet')
-            self.events_df.to_parquet(self.cache_dir / 'events_df.parquet')
-            self.churn_predictions.to_parquet(self.cache_dir / 'churn_predictions.parquet')
+            self.master_df.to_pickle(self.cache_dir / 'master_df.pkl')
+            self.cohort_retention.to_pickle(self.cache_dir / 'cohort_retention.pkl')
+            self.events_df.to_pickle(self.cache_dir / 'events_df.pkl')
+            self.churn_predictions.to_pickle(self.cache_dir / 'churn_predictions.pkl')
             print("✓ Data cached to disk")
         except Exception as e:
             print(f"Cache save failed: {e}")
