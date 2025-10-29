@@ -123,8 +123,8 @@ pdf_export_modal = dbc.Modal([
 # Main layout
 app.layout = dbc.Container([
     dcc.Location(id='url', refresh=False),
-    dcc.Interval(id='loading-interval', interval=1000, n_intervals=0, disabled=False),  # Refresh every second while loading
-    dcc.Store(id='data-loaded-store', storage_type='session'),  # Persist across page changes
+    dcc.Interval(id='loading-interval', interval=1000, n_intervals=0, disabled=True),  # Disabled - using synchronous loading
+    dcc.Store(id='data-loaded-store', storage_type='session'),  # Stores data load status
     dcc.Download(id="download-pdf"),  # PDF download component
     dcc.Store(id='pdf-export-status', data={'exporting': False}),  # Track export status
     pdf_export_modal,  # PDF export loading modal
@@ -150,67 +150,31 @@ def display_page(pathname, data_loaded_flag):
         # Load data
         loader = get_data_loader()
 
-        # Display loading message if data not loaded
+        # Load data synchronously if not already loaded
+        # Redis cache makes this fast (~1-2s from cache, ~10s on first load)
         if not loader.loaded:
-            # Attempt to load data
-            import threading
-            if not hasattr(loader, '_loading_thread') or not loader._loading_thread.is_alive():
-                loader._loading_thread = threading.Thread(target=loader.load_all_data)
-                loader._loading_thread.start()
+            loader.load_all_data()
 
+        # If still not loaded (error occurred), show error
+        if not loader.loaded:
             return dbc.Container([
-                dbc.Row([
-                    dbc.Col([
-                        html.Div([
-                            html.Div([
-                                html.I(className="fas fa-sync fa-spin fa-3x text-primary mb-4"),
-                                html.H3("Loading CX Analytics Dashboard", className="mb-3"),
-                                html.Div([
-                                    dbc.Progress(
-                                        value=loader.loading_progress,
-                                        striped=True,
-                                        animated=True,
-                                        color="primary",
-                                        className="mb-3",
-                                        style={"height": "25px"}
-                                    ),
-                                    html.P([
-                                        html.I(className="fas fa-circle-notch fa-spin me-2"),
-                                        html.Span(loader.loading_stage or "Initializing...",
-                                                 id="loading-stage",
-                                                 className="text-muted")
-                                    ], className="mb-4"),
-                                    html.Hr(),
-                                    html.Div([
-                                        html.H5("Loading Stages:", className="mb-3"),
-                                        html.Ul([
-                                            html.Li([
-                                                html.I(className="fas fa-check-circle text-success me-2" if loader.loading_progress >= 20 else "fas fa-circle text-muted me-2"),
-                                                "Loading data files"
-                                            ], className="mb-2"),
-                                            html.Li([
-                                                html.I(className="fas fa-check-circle text-success me-2" if loader.loading_progress >= 40 else "fas fa-circle text-muted me-2"),
-                                                "Processing user metrics"
-                                            ], className="mb-2"),
-                                            html.Li([
-                                                html.I(className="fas fa-check-circle text-success me-2" if loader.loading_progress >= 60 else "fas fa-circle text-muted me-2"),
-                                                "Calculating cohort retention"
-                                            ], className="mb-2"),
-                                            html.Li([
-                                                html.I(className="fas fa-check-circle text-success me-2" if loader.loading_progress >= 80 else "fas fa-circle text-muted me-2"),
-                                                "Building churn predictions"
-                                            ], className="mb-2"),
-                                            html.Li([
-                                                html.I(className="fas fa-check-circle text-success me-2" if loader.loading_progress >= 100 else "fas fa-circle text-muted me-2"),
-                                                "Complete!"
-                                            ])
-                                        ], className="list-unstyled text-start"),
-                                    ], className="mt-4 p-4 bg-light rounded"),
-                                ], style={"max-width": "600px", "margin": "0 auto"})
-                            ], className="text-center mt-5 p-5")
-                        ], className="bg-white rounded shadow-sm")
-                    ], width=12)
-                ])
+                dbc.Alert([
+                    html.H4([
+                        html.I(className="fas fa-exclamation-triangle me-2"),
+                        "Failed to Load Dashboard Data"
+                    ], className="alert-heading"),
+                    html.P(f"Loading stage: {loader.loading_stage}"),
+                    html.Hr(),
+                    html.P([
+                        "The dashboard failed to load data. This could be due to:",
+                        html.Ul([
+                            html.Li("Missing data files in data/raw/"),
+                            html.Li("Redis connection issues"),
+                            html.Li("Data processing errors")
+                        ])
+                    ]),
+                    html.P("Check the server logs for more details.", className="mb-0")
+                ], color="danger", className="mt-5")
             ], fluid=True)
 
         # Route to pages
@@ -241,19 +205,8 @@ def display_page(pathname, data_loaded_flag):
         ], color="danger")
 
 
-# Callback to disable interval and signal completion once data is loaded
-@app.callback(
-    [Output('loading-interval', 'disabled'),
-     Output('data-loaded-store', 'data')],
-    Input('loading-interval', 'n_intervals'),
-    prevent_initial_call=True
-)
-def disable_interval_when_loaded(n_intervals):
-    """Disable the loading interval once data is fully loaded and signal completion."""
-    loader = get_data_loader()
-    if loader.loaded:
-        return True, True  # Disable interval, signal data loaded
-    return False, False  # Keep interval running, data not loaded yet
+# Note: Loading interval callback removed - using synchronous loading instead
+# Data loads synchronously in display_page() callback, so no need for polling
 
 
 # PDF Export - Open modal when button clicked
