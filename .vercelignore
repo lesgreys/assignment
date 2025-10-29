@@ -27,3 +27,7 @@ htmlcov/
 # Don't exclude data/ - we need it for deployment
 # data/
 # *.csv
+
+# Exclude cache (will be regenerated)
+data/processed/
+models/

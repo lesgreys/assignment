@@ -1,5 +1,5 @@
 """
-DoorLoop CX Dashboard
+CX Analytics Dashboard
 Main Dash application for Customer Success analytics.
 """
 
@@ -8,6 +8,7 @@ import dash
 from dash import dcc, html, Input, Output, State
 import dash_bootstrap_components as dbc
 from datetime import datetime
+from flask_caching import Cache
 
 # Import layouts
 from layouts.executive_overview import create_executive_overview
@@ -27,11 +28,17 @@ app = dash.Dash(
     __name__,
     external_stylesheets=[dbc.themes.BOOTSTRAP, dbc.icons.FONT_AWESOME],
     suppress_callback_exceptions=True,
-    title="DoorLoop CX Dashboard"
+    title="CX Analytics Dashboard"
 )
 
 # Expose Flask server for WSGI servers (like Vercel)
 server = app.server
+
+# Configure caching
+cache = Cache(app.server, config={
+    'CACHE_TYPE': 'SimpleCache',  # In-memory cache
+    'CACHE_DEFAULT_TIMEOUT': 3600  # 1 hour default
+})
 
 # Define color scheme
 COLORS = {
@@ -80,7 +87,7 @@ header = dbc.Navbar(
         dbc.Row([
             dbc.Col([
                 html.Div([
-                    html.H2("DoorLoop CX Dashboard", className="mb-0 text-white"),
+                    html.H2("CX Analytics Dashboard", className="mb-0 text-white"),
                     html.Small("Customer Success Analytics", className="text-light")
                 ])
             ], width=6),
@@ -102,6 +109,7 @@ header = dbc.Navbar(
 app.layout = dbc.Container([
     dcc.Location(id='url', refresh=False),
     dcc.Interval(id='loading-interval', interval=1000, n_intervals=0),  # Refresh every second while loading
+    dcc.Store(id='data-loaded-store', storage_type='session'),  # Persist across page changes
     header,
     dbc.Row([
         dbc.Col(sidebar, width=2, style={"padding": 0}),
@@ -138,7 +146,7 @@ def display_page(pathname, n_intervals):
                         html.Div([
                             html.Div([
                                 html.I(className="fas fa-sync fa-spin fa-3x text-primary mb-4"),
-                                html.H3("Loading DoorLoop CX Dashboard", className="mb-3"),
+                                html.H3("Loading CX Analytics Dashboard", className="mb-3"),
                                 html.Div([
                                     dbc.Progress(
                                         value=loader.loading_progress,
@@ -260,7 +268,7 @@ for modal_id in MODAL_IDS:
 
 if __name__ == '__main__':
     # Load data on startup
-    print("Initializing DoorLoop CX Dashboard...")
+    print("Initializing CX Analytics Dashboard...")
     loader = get_data_loader()
 
     if loader.load_all_data():

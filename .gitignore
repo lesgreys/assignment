@@ -44,8 +44,10 @@ env/
 
 # Data files (if sensitive)
 data/raw/*.csv
-data/processed/*.csv
-data/processed/*.parquet
+data/processed/
+
+# Model cache
+models/
 
 # OS
 .DS_Store

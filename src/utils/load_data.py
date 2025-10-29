@@ -5,6 +5,9 @@ Loads data from Snowflake or local CSV and processes it.
 
 import os
 import pandas as pd
+import pickle
+from pathlib import Path
+from datetime import datetime, timedelta
 from .db_connector import DataConnector
 from .data_processor import CXDataProcessor
 
@@ -35,6 +38,69 @@ class DataLoader:
         self.loading_stage = ""
         self.loading_progress = 0
 
+        # Cache directories
+        self.cache_dir = Path('data/processed')
+        self.cache_dir.mkdir(parents=True, exist_ok=True)
+
+        self.model_dir = Path('models')
+        self.model_dir.mkdir(parents=True, exist_ok=True)
+
+    def _is_cache_valid(self, cache_file: Path, max_age_hours: int = 24) -> bool:
+        """Check if cache file exists and is recent enough."""
+        if not cache_file.exists():
+            return False
+
+        file_age = datetime.now() - datetime.fromtimestamp(cache_file.stat().st_mtime)
+        return file_age < timedelta(hours=max_age_hours)
+
+    def _load_from_cache(self) -> bool:
+        """Try to load processed data from cache."""
+        try:
+            master_cache = self.cache_dir / 'master_df.parquet'
+            cohort_cache = self.cache_dir / 'cohort_retention.parquet'
+            events_cache = self.cache_dir / 'events_df.parquet'
+            churn_cache = self.cache_dir / 'churn_predictions.parquet'
+
+            # Check if all cache files are valid
+            if not all([
+                self._is_cache_valid(master_cache),
+                self._is_cache_valid(cohort_cache),
+                self._is_cache_valid(events_cache),
+                self._is_cache_valid(churn_cache)
+            ]):
+                return False
+
+            print("Loading from cache...")
+            self.loading_stage = "Loading from cache..."
+            self.loading_progress = 50
+
+            # Load cached data
+            self.master_df = pd.read_parquet(master_cache)
+            self.cohort_retention = pd.read_parquet(cohort_cache)
+            self.events_df = pd.read_parquet(events_cache)
+            self.churn_predictions = pd.read_parquet(churn_cache)
+
+            self.loading_stage = "Cache loaded successfully!"
+            self.loading_progress = 100
+            self.loaded = True
+            print("✓ Data loaded from cache!")
+            return True
+
+        except Exception as e:
+            print(f"Cache load failed: {e}")
+            return False
+
+    def _save_to_cache(self):
+        """Save processed data to cache."""
+        try:
+            self.master_df.to_parquet(self.cache_dir / 'master_df.parquet')
+            self.cohort_retention.to_parquet(self.cache_dir / 'cohort_retention.parquet')
+            self.events_df.to_parquet(self.cache_dir / 'events_df.parquet')
+            self.churn_predictions.to_parquet(self.cache_dir / 'churn_predictions.parquet')
+            print("✓ Data cached to disk")
+        except Exception as e:
+            print(f"Cache save failed: {e}")
+
     def load_all_data(self) -> bool:
         """
         Load all data and process metrics.
@@ -43,6 +109,10 @@ class DataLoader:
             True if successful, False otherwise
         """
         try:
+            # Try to load from cache first
+            if self._load_from_cache():
+                return True
+
             self.loading_stage = "Initializing..."
             self.loading_progress = 0
             print("Loading data...")
@@ -88,6 +158,12 @@ class DataLoader:
 
             # Store events for detailed analysis
             self.events_df = events_df
+
+            self.loading_stage = "Saving to cache..."
+            self.loading_progress = 95
+
+            # Save to cache for next time
+            self._save_to_cache()
 
             self.loading_stage = "Complete!"
             self.loading_progress = 100
