@@ -61,3 +61,4 @@ presentation/*.pptx
 !presentation/template.pptx
 *.md
 *.pdf
+.vercel
