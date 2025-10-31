@@ -267,10 +267,6 @@ Shows how support ticket volume flows across engagement levels, ticket ranges, a
 - Ticket volume distribution follows engagement patterns
 - Active customers show different ticket patterns than inactive
 
-![Support Ticket Flow](notebooks/sankey%20engag%20ticket%20active.png)
-
-*Support Ticket Flow: Engagement Level → Ticket Range → Active Status*
-
 ### Additional Sankey Diagrams
 
 ![Portfolio Size to ARR Flow](notebooks/sankey%20size%20to%20arr.png)
@@ -285,9 +281,6 @@ Shows how support ticket volume flows across engagement levels, ticket ranges, a
 
 *Portfolio Size → Active Status Flow*
 
-![Event to Active Status](notebooks/sankey%20event%20to%20active%20status.png)
-
-*Engagement Events → Active Status Flow*
 
 ---
 
@@ -489,6 +482,6 @@ The visualization of customer journeys through Sankey diagrams provides intuitiv
 ---
 
 **Report Generated**: 2025  
-**Data Source**: DoorLoop CX Dataset  
+**Data Source**: CX Dataset  
 **Analysis Notebook**: `notebooks/customer_segmentation.ipynb`
 
