@@ -155,7 +155,35 @@ This report presents a comprehensive analysis of customer segmentation based on 
 
 ---
 
-## 6. Event Diversity Analysis
+## 6. Training Attendance Impact Analysis
+
+### Key Findings
+- **Customers who attended training**: 3,228 (32.3% of total customers)
+- **Customers who did not attend training**: 6,772 (67.7% of total customers)
+
+### Training Impact on ARR
+
+| Metric | Without Training | With Training | Lift |
+|--------|-----------------|---------------|------|
+| **Average ARR** | $2,177 | $4,941 | **+$2,764 (+126.9%)** |
+| **Median ARR** | $544 | $1,897 | **+$1,353 (+248.8%)** |
+| **Active Rate** | 68.0% | 76.0% | **+8.0 percentage points** |
+
+### Revenue Impact
+- **Total ARR from training attendees**: $15.9M
+- **Total ARR attributable to training lift**: $8.9M
+- **Average lift per training attendee**: $2,764
+
+### Insights
+- Training attendees generate **127% more ARR** on average
+- Training correlates with **8 percentage point higher active rate**
+- Training seems to drive both higher-value subscriptions and better retention
+- Nearly one-third of the customer base has attended training
+- **Strategic recommendation**: Expand training programs to capture this significant ARR lift
+
+---
+
+## 7. Event Diversity Analysis
 
 ### Feature Adoption Groups (by number of event types used)
 - **0-4 events**: 443 customers (4.4%)
@@ -189,7 +217,7 @@ This report presents a comprehensive analysis of customer segmentation based on 
 
 ---
 
-## 7. ARR Analysis
+## 8. ARR Analysis
 
 ### ARR Distribution
 - **Low ARR (<$5k)**: 8,621 customers (86.2%)
@@ -221,7 +249,7 @@ This report presents a comprehensive analysis of customer segmentation based on 
 
 ---
 
-## 8. Active Status Analysis
+## 9. Active Status Analysis
 
 ### Overall Distribution
 - **Active Customers**: 7,041 (70.4%)
@@ -241,7 +269,7 @@ Active rates vary significantly by portfolio size, plan type, and engagement lev
 
 ---
 
-## 9. Customer Journey Flow Analysis (Sankey Diagrams)
+## 10. Customer Journey Flow Analysis (Sankey Diagrams)
 
 ### Combined User Flow Sankey
 **Flow**: Portfolio Size → Plan Type → Engagement (Events) → Ticket Range → Active Status → ARR Group
@@ -284,7 +312,7 @@ Shows how support ticket volume flows across engagement levels, ticket ranges, a
 
 ---
 
-## 10. Key Customer Segments
+## 11. Key Customer Segments
 
 ### Top 3 Customer Segments (by volume)
 
@@ -332,7 +360,7 @@ Common inactive segment patterns:
 
 ---
 
-## 11. Data Quality Notes
+## 12. Data Quality Notes
 
 ### Portfolio Size Issues
 - 199 records have portfolio size < 1
@@ -346,7 +374,7 @@ Common inactive segment patterns:
 
 ---
 
-## 12. Visualizations Summary
+## 13. Visualizations Summary
 
 The following visualizations were generated during this analysis:
 
@@ -374,9 +402,16 @@ All Sankey diagram visualizations are embedded in Section 9 above, showing the c
 
 ---
 
-## 13. Key Recommendations
+## 14. Key Recommendations
 
 ### 1. Revenue Growth Opportunities
+
+**Training Program Expansion**
+- **Impact**: Training attendees generate **$2,764 more ARR per customer** (+127% increase)
+- **Current**: 3,228 customers (32.3%) have attended training
+- **Opportunity**: 6,772 customers (67.7%) haven't attended yet
+- **Potential ARR lift**: If all non-training customers attend, could add **$18.7M in ARR lift**
+- **Action**: Mandatory onboarding training, regular feature training sessions, advanced training tracks
 
 **Premium Upgrade Campaign**
 - Target: 10+ units → starter/pro → medium/high engagement → active
